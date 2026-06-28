@@ -8,7 +8,7 @@ OHLC_CACHE_TTL = 86400  # 24 hours
 MASTER_CACHE_TTL = 86400  # 24 hours
 
 # Default risk-free rate (annualized, in percentage)
-DEFAULT_RISK_FREE_RATE = 6.50
+DEFAULT_RISK_FREE_RATE = 0.065
 
 # Rolling window for historical data (in days)
 HISTORICAL_DATA_DAYS = 365

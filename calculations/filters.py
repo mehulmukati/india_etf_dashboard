@@ -117,7 +117,7 @@ def apply_top_performer_filter(
         valid_group = group[group[metric_column].notna()]
         if valid_group.empty:
             return group.iloc[:0]  # Empty dataframe with same structure
-        return valid_group.loc[valid_group[metric_column].idxmax()]
+        return valid_group.loc[[valid_group[metric_column].idxmax()]]
     
     result = df.groupby('index_tracked', group_keys=False).apply(get_top_performer)
     
