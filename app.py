@@ -18,6 +18,16 @@ def main():
     with st.spinner("Loading ETF data..."):
         master_df, nav_df, ohlc_df = load_all_data()
 
+
+# TEMP DIAGNOSTIC
+    # TEMPORARY DIAGNOSTIC
+    st.write("master_df columns:", master_df.columns.tolist())
+    st.write("master_df shape:", master_df.shape)
+    st.write("master_df head:", master_df.head(2))
+    st.stop()  # stops execution here so we can read the output
+# TEMP DIAGNOSTIC
+
+
     if master_df.empty or ohlc_df.empty:
         st.error("Unable to load ETF data. Please check your database connection.")
         return
