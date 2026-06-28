@@ -4,7 +4,6 @@ UI module for building sidebar filter controls.
 import streamlit as st
 from typing import Dict, List, Tuple
 from config import (
-    DEFAULT_RISK_FREE_RATE,
     DMA_PERIODS
 )
 from calculations.filters import get_available_metric_options
@@ -72,8 +71,8 @@ def build_risk_free_rate_input() -> float:
     rate_pct = st.number_input(
         "Risk-Free Rate (%)",
         min_value=0.0,
-        max_value=20.0,
-        value=DEFAULT_RISK_FREE_RATE * 100,
+        max_value=50.0,
+        value=6.50,
         step=0.25,
         help="Annual risk-free rate used for Sharpe ratio calculation"
     )
@@ -145,11 +144,11 @@ def build_min_annual_return_filter() -> float:
     """
     min_return_pct = st.number_input(
         "Min Annual Return (%)",
-        min_value=0.0,
-        max_value=100.0,
+        min_value=-100.0,
+        max_value=500.0,
         value=0.0,
         step=1.0,
-        help="Minimum 12-month annualized return"
+        help="Minimum 12-month annualized return (can be negative)"
     )
     
     return min_return_pct / 100
