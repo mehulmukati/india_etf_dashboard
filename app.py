@@ -25,6 +25,27 @@ def main():
     with st.spinner("Calculating metrics..."):
         results_df = calculate_all_etf_metrics(master_df, nav_df, ohlc_df, filters['risk_free_rate'])
     
+
+with st.spinner("Calculating metrics..."):
+    results_df = calculate_all_etf_metrics(master_df, nav_df, ohlc_df, filters['risk_free_rate'])
+
+# TEMPORARY DIAGNOSTIC - add this block
+st.write("### Debug Info")
+st.write(f"Total ETFs with metrics: {len(results_df)}")
+st.write(f"Risk free rate being passed: {filters['risk_free_rate']}")
+if not results_df.empty:
+    st.write(f"Sharpe sample (first 5 rows):")
+    st.write(results_df[['nse_code', 'index_tracked', '12m_sharpe', '12m_return', 'avg_turnover_5d']].head())
+    st.write(f"12m_sharpe range: {results_df['12m_sharpe'].min():.2f} to {results_df['12m_sharpe'].max():.2f}")
+    st.write(f"12m_return range: {results_df['12m_return'].min():.4f} to {results_df['12m_return'].max():.4f}")
+    st.write(f"NaN counts: {results_df[['12m_sharpe','12m_return','avg_turnover_5d']].isna().sum().to_dict()}")
+    st.write(f"Unique index_tracked count: {results_df['index_tracked'].nunique()}")
+
+
+
+
+
+
     if results_df.empty:
         st.warning("No ETF data available for analysis.")
         return
