@@ -24,7 +24,7 @@ def main():
     st.write("master_df columns:", master_df.columns.tolist())
     st.write("master_df shape:", master_df.shape)
     st.write("master_df head:", master_df.head(2))
-    st.stop()  # stops execution here so we can read the output
+#    st.stop()  # stops execution here so we can read the output
 # TEMP DIAGNOSTIC
 
 
