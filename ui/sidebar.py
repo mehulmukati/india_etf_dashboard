@@ -210,6 +210,15 @@ def build_sidebar() -> Dict:
         # Minimum traded value
         min_traded_value = build_min_traded_value_filter()
         
+        st.divider()
+        
+        # Table display options
+        show_all_columns = st.checkbox(
+            "Show All Columns",
+            value=False,
+            help="If checked, display all available columns. Otherwise, show only default columns plus the selected metric."
+        )
+        
         return {
             'selected_metric': selected_metric,
             'risk_free_rate': risk_free_rate,
@@ -218,5 +227,6 @@ def build_sidebar() -> Dict:
             'above_200_dma': above_200_dma,
             'category': category,
             'min_annual_return': min_annual_return,
-            'min_traded_value': min_traded_value
+            'min_traded_value': min_traded_value,
+            'show_all_columns': show_all_columns
         }

@@ -32,7 +32,7 @@ def main():
     sorted_df = process_screener(results_df, filters)
     render_summary_stats(sorted_df)
     st.divider()
-    render_results_table(sorted_df, filters['selected_metric'])
+    render_results_table(sorted_df, filters['selected_metric'], show_all_columns=filters['show_all_columns'])
     st.divider()
     export_to_csv(sorted_df)
 
