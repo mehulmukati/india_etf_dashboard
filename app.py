@@ -47,8 +47,8 @@ if not results_df.empty:
 
 
 #    if results_df.empty:
-        st.warning("No ETF data available for analysis.")
-        return
+   st.warning("No ETF data available for analysis.")
+   return
     
     sorted_df = process_screener(results_df, filters)
     render_summary_stats(sorted_df)
