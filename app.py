@@ -46,7 +46,7 @@ if not results_df.empty:
 
 
 
-    if results_df.empty:
+#    if results_df.empty:
         st.warning("No ETF data available for analysis.")
         return
     
