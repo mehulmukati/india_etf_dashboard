@@ -303,6 +303,7 @@ def prepare_turnover_series(ohlc_df: pd.DataFrame, nse_code: str) -> pd.Series:
 
 def calculate_all_metrics_for_etf(
     nse_code: str,
+    scheme_code: str,
     ohlc_df: pd.DataFrame,
     nav_df: pd.DataFrame,
     risk_free_rate: float = DEFAULT_RISK_FREE_RATE
@@ -312,6 +313,7 @@ def calculate_all_metrics_for_etf(
     
     Args:
         nse_code: NSE code of the ETF
+        scheme_code: Scheme code of the ETF (for NAV lookup)
         ohlc_df: DataFrame with OHLC data
         nav_df: DataFrame with NAV data
         risk_free_rate: Annual risk-free rate
@@ -329,7 +331,9 @@ def calculate_all_metrics_for_etf(
     
     # Get latest values
     last_close = prices.iloc[-1] if len(prices) > 0 else np.nan
-    last_nav_row = nav_df[nav_df['scheme_code'].astype(str) == str(nse_code)]
+    
+    # Use scheme_code to look up NAV (not nse_code)
+    last_nav_row = nav_df[nav_df['scheme_code'].astype(str) == str(scheme_code)]
     if not last_nav_row.empty:
         last_nav_row = last_nav_row.sort_values('trade_date', ascending=False).iloc[0]
         last_nav = last_nav_row['nav']

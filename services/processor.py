@@ -44,8 +44,10 @@ def calculate_all_etf_metrics(
     
     for _, row in master_df.iterrows():
         nse_code = row['nse_code']
+        scheme_code = row['scheme_code']
         metrics = calculate_all_metrics_for_etf(
             nse_code=nse_code,
+            scheme_code=scheme_code,
             ohlc_df=ohlc_df,
             nav_df=nav_df,
             risk_free_rate=risk_free_rate

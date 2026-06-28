@@ -225,12 +225,12 @@ def render_results_table(
     # Apply formatting to numeric columns
     for col in numeric_columns:
         if col in display_df.columns:
-            styler = styler.format({col: lambda x: format_currency(x)})
+            styler = styler.format({col: format_currency})
     
     # Apply formatting to percentage columns
     for col in percentage_columns:
         if col in display_df.columns:
-            styler = styler.format({col: lambda x: format_percentage(x)})
+            styler = styler.format({col: format_percentage})
     
     # Highlight the selected metric column
     metric_display_name = get_metric_display_name(selected_metric)
