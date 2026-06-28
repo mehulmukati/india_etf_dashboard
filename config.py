@@ -22,6 +22,8 @@ VOLUME_1M_WINDOW = 21  # ~1 trading month
 
 # Return calculation periods (in months)
 RETURN_PERIODS = [3, 6, 9, 12]
+# Convert to approximate number of trading days (assuming ~22 trading days per month)
+RETURN_PERIODS_DAYS = {3: 66, 6: 132, 9: 198, 12: 264}
 
 # Database table names
 TABLE_ETF_MASTER = "etf_master"
