@@ -174,4 +174,4 @@ def fetch_etf_ohlc() -> pd.DataFrame:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
 #    return df[OHLC_COLUMNS]
-     return df[[col for col in OHLC_COLUMNS if col in df.columns]]
+    return df[[col for col in OHLC_COLUMNS if col in df.columns]]
