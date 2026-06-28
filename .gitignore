@@ -4,48 +4,27 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-venv/
-env/
-ENV/
-.venv/
 .env
 .env.local
 .env.*
-env.bak
-venv.bak
+.venv/
+venv/
+.envrc
 
-# Build artifacts
-build/
+# Build and distribution artifacts
 dist/
+build/
 *.egg-info/
+
+# Testing
+.pytest_cache/
+.coverage
+coverage/
 
 # Logs
 *.log
 
-# Editor/IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# OS generated files
 .DS_Store
-Thumbs.db
-
-# Testing
-.coverage
-htmlcov/
-.coverage.*
-.cache
-.pytest_cache/
-.mypy_cache/
-
-# OS generated
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 ```
