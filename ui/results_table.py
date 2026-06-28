@@ -35,12 +35,90 @@ def format_number(value: float, decimals: int = 2) -> str:
     return f"{value:.{decimals}f}"
 
 
-def prepare_display_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+# Default columns to display (in order)
+DEFAULT_COLUMNS = [
+    'ETF Name',
+    'Index Tracked',
+    'NSE Code',
+    'Last Close',
+    'Last NAV',
+    'Prem/Dis to NAV %',
+    '50 DMA',
+    '100 DMA',
+    '200 DMA',
+    '5D Avg Traded Value'
+]
+
+# Column name mapping from internal to display names
+COLUMN_MAPPING = {
+    'nse_code': 'NSE Code',
+    'scheme_name': 'ETF Name',
+    'index_tracked': 'Index Tracked',
+    'category': 'Category',
+    'last_close': 'Last Close',
+    'last_nav': 'Last NAV',
+    'premium_discount_pct': 'Prem/Dis to NAV %',
+    'volatility': 'Volatility (Ann.)',
+    'high_52w': '52w High',
+    'median_volume_1m': '1M Median Volume',
+    'median_volume_5d': '5D Median Volume',
+    'avg_turnover_5d': '5D Avg Traded Value',
+    'dma_50': '50 DMA',
+    'dma_100': '100 DMA',
+    'dma_200': '200 DMA'
+}
+
+# Add return and sharpe columns to mapping
+for period in ['3', '6', '9', '12']:
+    COLUMN_MAPPING[f'{period}m_return'] = f'{period}M Return'
+    COLUMN_MAPPING[f'{period}m_annualized'] = f'{period}M Ann. Return'
+    COLUMN_MAPPING[f'{period}m_sharpe'] = f'{period}M Sharpe'
+
+# Add average columns
+COLUMN_MAPPING['avg_3_6_9_12m_return'] = 'Avg 3/6/9/12M Return'
+COLUMN_MAPPING['avg_3_6m_return'] = 'Avg 3/6M Return'
+COLUMN_MAPPING['avg_6_9_12m_return'] = 'Avg 6/9/12M Return'
+COLUMN_MAPPING['avg_9_12m_return'] = 'Avg 9/12M Return'
+COLUMN_MAPPING['avg_3_6_9_12m_sharpe'] = 'Avg 3/6/9/12M Sharpe'
+COLUMN_MAPPING['avg_3_6m_sharpe'] = 'Avg 3/6M Sharpe'
+COLUMN_MAPPING['avg_6_9_12m_sharpe'] = 'Avg 6/9/12M Sharpe'
+COLUMN_MAPPING['avg_9_12m_sharpe'] = 'Avg 9/12M Sharpe'
+
+
+def get_metric_display_name(selected_metric: str) -> str:
+    """
+    Get the display name for the selected metric column.
+    
+    Args:
+        selected_metric: Internal metric name (e.g., '3m_return', '6m_sharpe')
+        
+    Returns:
+        Display name for the metric
+    """
+    if selected_metric in COLUMN_MAPPING:
+        return COLUMN_MAPPING[selected_metric]
+    
+    # Fallback: convert internal name to display name
+    display_name = selected_metric.replace('_', ' ').title()
+    if 'return' in selected_metric.lower():
+        display_name = display_name.replace('Return', 'M Return').replace('M M', 'M')
+    if 'sharpe' in selected_metric.lower():
+        display_name = display_name.replace('Sharpe', 'M Sharpe').replace('M M', 'M')
+    return display_name
+
+
+def prepare_display_dataframe(
+    df: pd.DataFrame,
+    selected_metric: str,
+    show_all_columns: bool = False
+) -> pd.DataFrame:
     """
     Prepare the dataframe for display with proper column names and formatting.
     
     Args:
         df: DataFrame with all calculated metrics
+        selected_metric: Currently selected metric for highlighting
+        show_all_columns: If True, show all available columns; otherwise show only defaults
         
     Returns:
         DataFrame ready for display with formatted column names
@@ -50,47 +128,30 @@ def prepare_display_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     
     display_df = df.copy()
     
-    # Map internal column names to display names
-    column_mapping = {
-        'nse_code': 'NSE Code',
-        'scheme_name': 'ETF Name',
-        'index_tracked': 'Index Tracked',
-        'category': 'Category',
-        'last_close': 'Last Close',
-        'last_nav': 'Last NAV',
-        'premium_discount_pct': 'Prem/Dis to NAV %',
-        'volatility': 'Volatility (Ann.)',
-        'high_52w': '52w High',
-        'median_volume_1m': '1M Median Volume',
-        'median_volume_5d': '5D Median Volume',
-        'avg_turnover_5d': '5D Avg Traded Value',
-        'dma_50': '50 DMA',
-        'dma_100': '100 DMA',
-        'dma_200': '200 DMA'
-    }
-    
-    # Add return columns
-    for period in ['3', '6', '9', '12']:
-        column_mapping[f'{period}m_return'] = f'{period}M Return'
-        column_mapping[f'{period}m_annualized'] = f'{period}M Ann. Return'
-        column_mapping[f'{period}m_sharpe'] = f'{period}M Sharpe'
-    
-    # Add average columns
-    column_mapping['avg_3_6_9_12m_return'] = 'Avg 3/6/9/12M Return'
-    column_mapping['avg_3_6m_return'] = 'Avg 3/6M Return'
-    column_mapping['avg_6_9_12m_return'] = 'Avg 6/9/12M Return'
-    column_mapping['avg_9_12m_return'] = 'Avg 9/12M Return'
-    column_mapping['avg_3_6_9_12m_sharpe'] = 'Avg 3/6/9/12M Sharpe'
-    column_mapping['avg_3_6m_sharpe'] = 'Avg 3/6M Sharpe'
-    column_mapping['avg_6_9_12m_sharpe'] = 'Avg 6/9/12M Sharpe'
-    column_mapping['avg_9_12m_sharpe'] = 'Avg 9/12M Sharpe'
-    
-    # Rename columns that exist in the dataframe
+    # Rename columns using the mapping
     existing_cols = set(display_df.columns)
-    rename_dict = {k: v for k, v in column_mapping.items() if k in existing_cols}
+    rename_dict = {k: v for k, v in COLUMN_MAPPING.items() if k in existing_cols}
     display_df = display_df.rename(columns=rename_dict)
     
-    return display_df
+    # Determine which columns to show
+    if show_all_columns:
+        # Show all columns
+        columns_to_show = [col for col in display_df.columns if col in list(COLUMN_MAPPING.values())]
+    else:
+        # Show only default columns + the selected metric
+        metric_col = get_metric_display_name(selected_metric)
+        columns_to_show = DEFAULT_COLUMNS.copy()
+        
+        # Add the selected metric column if it exists and is not already in defaults
+        if metric_col in display_df.columns and metric_col not in columns_to_show:
+            # Insert the metric column after Prem/Dis to NAV % (position 6)
+            insert_pos = 6
+            columns_to_show.insert(insert_pos, metric_col)
+        
+        # Filter to only columns that exist in the dataframe
+        columns_to_show = [col for col in columns_to_show if col in display_df.columns]
+    
+    return display_df[columns_to_show]
 
 
 def get_table_column_config() -> dict:
@@ -118,7 +179,8 @@ def get_table_column_config() -> dict:
 def render_results_table(
     df: pd.DataFrame,
     selected_metric: str,
-    use_container_width: bool = True
+    use_container_width: bool = True,
+    show_all_columns: bool = False
 ) -> None:
     """
     Render the results table with proper formatting and sorting.
@@ -127,13 +189,14 @@ def render_results_table(
         df: DataFrame with all calculated and filtered data
         selected_metric: Currently selected metric for highlighting
         use_container_width: Whether to use full container width
+        show_all_columns: If True, show all available columns; otherwise show only defaults
     """
     if df.empty:
         st.warning("No ETFs match the selected filters.")
         return
     
     # Prepare display dataframe
-    display_df = prepare_display_dataframe(df)
+    display_df = prepare_display_dataframe(df, selected_metric, show_all_columns)
     
     # Format numeric columns
     numeric_columns = [
@@ -162,20 +225,15 @@ def render_results_table(
     # Apply formatting to numeric columns
     for col in numeric_columns:
         if col in display_df.columns:
-            styler = styler.format({col: lambda x: format_currency(x)})
+            styler = styler.format({col: format_currency})
     
     # Apply formatting to percentage columns
     for col in percentage_columns:
         if col in display_df.columns:
-            styler = styler.format({col: lambda x: format_percentage(x)})
+            styler = styler.format({col: format_percentage})
     
     # Highlight the selected metric column
-    metric_display_name = selected_metric.replace('_', ' ').title()
-    # Map common patterns
-    if 'return' in selected_metric.lower():
-        metric_display_name = metric_display_name.replace('Return', 'M Return').replace('M M', 'M')
-    if 'sharpe' in selected_metric.lower():
-        metric_display_name = metric_display_name.replace('Sharpe', 'M Sharpe').replace('M M', 'M')
+    metric_display_name = get_metric_display_name(selected_metric)
     
     if metric_display_name in display_df.columns:
         styler = styler.highlight_max(
