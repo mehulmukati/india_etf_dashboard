@@ -107,7 +107,8 @@ def fetch_etf_master() -> pd.DataFrame:
         return pd.DataFrame(columns=MASTER_COLUMNS)
 
     df = pd.DataFrame(response.data)
-    return df[MASTER_COLUMNS]
+    # return df[MASTER_COLUMNS]
+    return df[[col for col in MASTER_COLUMNS if col in df.columns]]
 
 
 @st.cache_data(ttl=NAV_CACHE_TTL)
@@ -136,7 +137,8 @@ def fetch_etf_nav() -> pd.DataFrame:
 
     df = pd.DataFrame(response.data)
     df["trade_date"] = pd.to_datetime(df["trade_date"])
-    return df[NAV_COLUMNS]
+#    return df[NAV_COLUMNS]
+    return df[[col for col in NAV_COLUMNS if col in df.columns]]
 
 
 @st.cache_data(ttl=OHLC_CACHE_TTL)
@@ -171,4 +173,5 @@ def fetch_etf_ohlc() -> pd.DataFrame:
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    return df[OHLC_COLUMNS]
+#    return df[OHLC_COLUMNS]
+     return df[[col for col in OHLC_COLUMNS if col in df.columns]]
