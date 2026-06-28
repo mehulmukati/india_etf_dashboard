@@ -2,14 +2,13 @@
 Data fetching functions with Streamlit caching.
 Fetches Master, NAV, and OHLC data from Supabase.
 """
-
+import json
 import streamlit as st
 import pandas as pd
 from datetime import timedelta, date
-
+from pathlib import Path
 import sys
 sys.path.append("/workspace")
-
 from config import (
     NAV_CACHE_TTL,
     OHLC_CACHE_TTL,
@@ -21,8 +20,68 @@ from config import (
     MASTER_COLUMNS,
     NAV_COLUMNS,
     OHLC_COLUMNS,
+    NSE_HOLIDAYS_PATH,       # ← add this to config.py (see note below)
+    NSE_HOLIDAYS_SEGMENT,    # ← add this to config.py (see note below)
 )
 from database.client import get_supabase_client
+
+
+def get_nse_holidays(segment: str = "CBM") -> set:
+    """
+    Load NSE holidays for a given segment from the JSON file.
+    Dates are returned as a set of date objects for fast lookup.
+
+    Args:
+        segment: Market segment key in the JSON (default 'CBM' for equity/ETF)
+
+    Returns:
+        Set of date objects representing market holidays
+    """
+    holidays_path = Path(NSE_HOLIDAYS_PATH)
+    if not holidays_path.exists():
+        return set()
+
+    with open(holidays_path, "r") as f:
+        data = json.load(f)
+
+    holidays = set()
+    for entry in data.get(segment, []):
+        try:
+            holidays.add(
+                pd.to_datetime(entry["tradingDate"], format="%d-%b-%Y").date()
+            )
+        except (KeyError, ValueError):
+            continue
+
+    return holidays
+
+
+def get_last_trading_date(segment: str = "CBM") -> date:
+    """
+    Determine the most recent trading date by stepping back from today,
+    skipping weekends and NSE holidays.
+
+    Args:
+        segment: Market segment to use for holiday lookup
+
+    Returns:
+        Most recent trading date as a date object
+    """
+    holidays = get_nse_holidays(segment)
+    candidate = date.today()
+
+    while True:
+        # Skip weekends (Mon=0 ... Sun=6)
+        if candidate.weekday() >= 5:
+            candidate -= timedelta(days=1)
+            continue
+        # Skip NSE holidays
+        if candidate in holidays:
+            candidate -= timedelta(days=1)
+            continue
+        break
+
+    return candidate
 
 
 @st.cache_data(ttl=MASTER_CACHE_TTL)
@@ -30,23 +89,23 @@ def fetch_etf_master() -> pd.DataFrame:
     """
     Fetch ETF master data from Supabase.
     Only fetches active ETFs.
-    
+
     Returns:
-        pd.DataFrame: ETF master data with columns: id, scheme_code, nse_code, 
-                      is_active, index_tracked, category
+        pd.DataFrame with columns: id, scheme_code, nse_code,
+                                   is_active, index_tracked, category
     """
     client = get_supabase_client()
-    
+
     response = (
         client.table(TABLE_ETF_MASTER)
         .select(",".join(MASTER_COLUMNS))
         .eq("is_active", True)
         .execute()
     )
-    
+
     if not response.data:
         return pd.DataFrame(columns=MASTER_COLUMNS)
-    
+
     df = pd.DataFrame(response.data)
     return df[MASTER_COLUMNS]
 
@@ -54,26 +113,27 @@ def fetch_etf_master() -> pd.DataFrame:
 @st.cache_data(ttl=NAV_CACHE_TTL)
 def fetch_etf_nav() -> pd.DataFrame:
     """
-    Fetch rolling 1-year NAV data from Supabase.
-    
+    Fetch rolling NAV data from Supabase up to the last trading date.
+
     Returns:
-        pd.DataFrame: NAV data with columns: id, scheme_code, trade_date, nav
+        pd.DataFrame with columns: id, scheme_code, trade_date, nav
     """
     client = get_supabase_client()
-    
-    # Calculate the date 1 year ago
-    cutoff_date = date.today() - timedelta(days=HISTORICAL_DATA_DAYS)
-    
+
+    last_trading_date = get_last_trading_date(NSE_HOLIDAYS_SEGMENT)
+    cutoff_date = last_trading_date - timedelta(days=HISTORICAL_DATA_DAYS)
+
     response = (
         client.table(TABLE_ETF_NAV)
         .select(",".join(NAV_COLUMNS))
         .gte("trade_date", cutoff_date.isoformat())
+        .lte("trade_date", last_trading_date.isoformat())   # ← key fix
         .execute()
     )
-    
+
     if not response.data:
         return pd.DataFrame(columns=NAV_COLUMNS)
-    
+
     df = pd.DataFrame(response.data)
     df["trade_date"] = pd.to_datetime(df["trade_date"])
     return df[NAV_COLUMNS]
@@ -82,33 +142,33 @@ def fetch_etf_nav() -> pd.DataFrame:
 @st.cache_data(ttl=OHLC_CACHE_TTL)
 def fetch_etf_ohlc() -> pd.DataFrame:
     """
-    Fetch rolling 1-year OHLC data from Supabase.
-    
+    Fetch rolling OHLC data from Supabase up to the last trading date.
+
     Returns:
-        pd.DataFrame: OHLC data with columns: id, nse_code, trade_date, 
-                      open, high, low, close, volume, turnover
+        pd.DataFrame with columns: id, nse_code, trade_date,
+                                   open, high, low, close, volume, turnover
     """
     client = get_supabase_client()
-    
-    # Calculate the date 1 year ago
-    cutoff_date = date.today() - timedelta(days=HISTORICAL_DATA_DAYS)
-    
+
+    last_trading_date = get_last_trading_date(NSE_HOLIDAYS_SEGMENT)
+    cutoff_date = last_trading_date - timedelta(days=HISTORICAL_DATA_DAYS)
+
     response = (
         client.table(TABLE_ETF_OHLC)
         .select(",".join(OHLC_COLUMNS))
         .gte("trade_date", cutoff_date.isoformat())
+        .lte("trade_date", last_trading_date.isoformat())   # ← key fix
         .execute()
     )
-    
+
     if not response.data:
         return pd.DataFrame(columns=OHLC_COLUMNS)
-    
+
     df = pd.DataFrame(response.data)
     df["trade_date"] = pd.to_datetime(df["trade_date"])
-    
-    # Ensure numeric columns are properly typed
+
     numeric_cols = ["open", "high", "low", "close", "volume", "turnover"]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-    
+
     return df[OHLC_COLUMNS]

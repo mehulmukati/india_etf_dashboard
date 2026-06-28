@@ -2,6 +2,10 @@
 Global constants, cache TTLs, and default configuration values.
 """
 
+# NSE Holidays
+NSE_HOLIDAYS_PATH = "nse_holidays.json"   # adjust path if file is in a subdirectory
+NSE_HOLIDAYS_SEGMENT = "CBM"              # CBM = equity/ETF segment
+
 # Cache TTLs (in seconds)
 NAV_CACHE_TTL = 43200  # 12 hours
 OHLC_CACHE_TTL = 86400  # 24 hours
