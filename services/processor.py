@@ -5,8 +5,8 @@ Keeps app.py lean by encapsulating the main workflow logic.
 import pandas as pd
 from typing import Dict, List
 from database.fetch_data import fetch_etf_master, fetch_etf_nav, fetch_etf_ohlc
-from calculations.metrics import calculate_all_metrics_for_etf, calculate_average_metrics
-from calculations.filters import apply_all_filters, sort_by_selected_metric
+from calculations.metrics import calculate_all_metrics_for_etf
+from calculations.filters import apply_all_filters, sort_by_selected_metric, calculate_average_metrics
 
 
 def load_all_data():

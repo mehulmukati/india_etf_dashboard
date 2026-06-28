@@ -1,1 +1,4 @@
-(config.py is a source code file, so no changes needed to .gitignore)
+```
+__pycache__/
+*.pyc
+```
