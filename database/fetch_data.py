@@ -134,11 +134,17 @@ def fetch_etf_nav() -> pd.DataFrame:
     last_trading_date = get_last_trading_date(NSE_HOLIDAYS_SEGMENT)
     cutoff_date = last_trading_date - timedelta(days=HISTORICAL_DATA_DAYS)
 
+    all_data = []
+        page = 0
+        page_size = 1000  # max per request
+
+    while True:
     response = (
         client.table(TABLE_ETF_NAV)
         .select(",".join(NAV_COLUMNS))
         .gte("trade_date", cutoff_date.isoformat())
         .lte("trade_date", last_trading_date.isoformat())   # ← key fix
+        .range(page * page_size, (page + 1) * page_size - 1)  # pagination
         .execute()
     )
 
@@ -165,11 +171,17 @@ def fetch_etf_ohlc() -> pd.DataFrame:
     last_trading_date = get_last_trading_date(NSE_HOLIDAYS_SEGMENT)
     cutoff_date = last_trading_date - timedelta(days=HISTORICAL_DATA_DAYS)
 
+    all_data = []
+        page = 0
+        page_size = 1000  # max per request
+
+    while True:
     response = (
         client.table(TABLE_ETF_OHLC)
         .select(",".join(OHLC_COLUMNS))
         .gte("trade_date", cutoff_date.isoformat())
         .lte("trade_date", last_trading_date.isoformat())   # ← key fix
+        .range(page * page_size, (page + 1) * page_size - 1)  # pagination
         .execute()
     )
 
