@@ -97,31 +97,41 @@ def apply_top_performer_filter(
 ) -> pd.DataFrame:
     """
     Apply "Top Performer" logic: keep only the best ETF per index_tracked.
-    
+
     Args:
         df: DataFrame with ETF data including metrics
         metric_column: Column name to use for ranking
-        
+
     Returns:
         Filtered DataFrame with only top performers per index
     """
     if df.empty:
         return df
-    
+
     if metric_column not in df.columns:
         return df
-    
-    # Group by index_tracked and keep the row with highest metric value
-    def get_top_performer(group):
-        # Sort by metric descending, take first non-NaN value
-        valid_group = group[group[metric_column].notna()]
-        if valid_group.empty:
-            return group.iloc[:0]  # Empty dataframe with same structure
-        return valid_group.loc[[valid_group[metric_column].idxmax()]]
-    
-    result = df.groupby('index_tracked', group_keys=False).apply(get_top_performer)
-    
-    return result.reset_index(drop=True)
+
+    # Work on a copy to avoid modifying original
+    result = df.copy()
+
+    # Drop rows where index_tracked is missing (optional but recommended)
+    result = result.dropna(subset=['index_tracked'])
+
+    # Keep only rows where the metric is not NaN
+    valid = result[result[metric_column].notna()]
+
+    if valid.empty:
+        # No valid data -> return empty DataFrame with same columns
+        return pd.DataFrame(columns=result.columns)
+
+    # For each index_tracked, find the row index with the maximum metric value
+    idx = valid.groupby('index_tracked')[metric_column].idxmax()
+
+    # Select those rows from the original DataFrame (preserves all columns)
+    top_performers = result.loc[idx].reset_index(drop=True)
+
+    return top_performers
+
 
 
 def apply_dma_filter(
