@@ -19,16 +19,16 @@ def main():
         master_df, nav_df, ohlc_df = load_all_data()
 
 
-st.write("### Data Debug Info")
-st.write(f"Master rows: {len(master_df)}")
-st.write(f"NAV rows: {len(nav_df)}")
-st.write(f"OHLC rows: {len(ohlc_df)}")
+	st.write("### Data Debug Info")
+	st.write(f"Master rows: {len(master_df)}")
+	st.write(f"NAV rows: {len(nav_df)}")
+	st.write(f"OHLC rows: {len(ohlc_df)}")
 
-if not ohlc_df.empty:
-    st.write(f"OHLC date range: {ohlc_df['trade_date'].min()} to {ohlc_df['trade_date'].max()}")
-    st.write(f"Unique NSE codes in OHLC: {ohlc_df['nse_code'].nunique()}")
-    st.dataframe(ohlc_df.head(10))
-    st.dataframe(master_df.head(10))
+	if not ohlc_df.empty:
+	    st.write(f"OHLC date range: {ohlc_df['trade_date'].min()} to {ohlc_df['trade_date'].max()}")
+	    st.write(f"Unique NSE codes in OHLC: {ohlc_df['nse_code'].nunique()}")
+	    st.dataframe(ohlc_df.head(10))
+	    st.dataframe(master_df.head(10))
 
 
     if master_df.empty or ohlc_df.empty:
