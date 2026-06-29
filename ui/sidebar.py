@@ -47,13 +47,17 @@ def build_metric_dropdown() -> str:
     selectable_labels = [label for label in all_labels if not label.startswith('---')]
     selectable_keys = [key for key in all_keys if key is not None]
     
+    # Find the index of the default metric (Avg 3/6/9/12m Return)
+    default_key = 'avg_3_6_9_12m_return'
+    default_index = selectable_keys.index(default_key) if default_key in selectable_keys else 0
+
     selected_label = st.selectbox(
         "Select Metric",
         options=selectable_labels,
-        index=0,
+        index=default_index,
         help="Choose a metric to rank ETFs. The top performer for each index will be shown."
     )
-    
+
     # Map label back to key
     selected_index = selectable_labels.index(selected_label)
     selected_key = selectable_keys[selected_index]
