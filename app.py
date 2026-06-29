@@ -18,7 +18,8 @@ def main():
     with st.spinner("Loading ETF data..."):
         master_df, nav_df, ohlc_df = load_all_data()
 
-
+"""
+OLD DEBUG CODE
     st.write("### Data Debug Info")
     st.write(f"Master rows: {len(master_df)}")
     st.write(f"NAV rows: {len(nav_df)}")
@@ -29,6 +30,7 @@ def main():
        st.write(f"Unique NSE codes in OHLC: {ohlc_df['nse_code'].nunique()}")
        st.dataframe(ohlc_df.head(10))
        st.dataframe(master_df.head(10))
+"""
 
 
     if master_df.empty or ohlc_df.empty:
