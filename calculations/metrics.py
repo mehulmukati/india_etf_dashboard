@@ -177,7 +177,7 @@ def calculate_premium_discount(last_close: float, last_nav: float) -> float:
     if pd.isna(last_nav) or last_nav == 0:
         return np.nan
     
-    return ((last_close - last_nav) / last_nav) * 100
+    return ((last_close - last_nav) / last_nav)
 
 
 def calculate_median_volume(volumes: pd.Series, window: int) -> float:

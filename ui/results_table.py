@@ -204,9 +204,15 @@ def render_results_table(
         '1M Median Volume', '5D Median Volume'
     ]
     
-    percentage_columns = [
-        'Prem/Dis to NAV %', 'Volatility (Ann.)'
-    ]
+    # Percentage columns – dynamically detect returns + premium/discount + volatility
+    percentage_columns = []
+    # Reverse mapping: display name -> internal key
+    rev_mapping = {v: k for k, v in COLUMN_MAPPING.items()}
+    for col in display_df.columns:
+        internal = rev_mapping.get(col)
+        if internal:
+            if internal.endswith('_return') or internal == 'premium_discount_pct' or internal == 'volatility':
+                percentage_columns.append(col)
     
     # Apply formatting using styler
     def format_column(value, col_type):
