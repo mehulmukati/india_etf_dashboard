@@ -179,7 +179,7 @@ def get_table_column_config() -> dict:
 def render_results_table(
     df: pd.DataFrame,
     selected_metric: str,
-    use_container_width: bool = True,
+    width: bool = True,
     show_all_columns: bool = False
 ) -> None:
     """
@@ -188,7 +188,7 @@ def render_results_table(
     Args:
         df: DataFrame with all calculated and filtered data
         selected_metric: Currently selected metric for highlighting
-        use_container_width: Whether to use full container width
+        width: Whether to use full container width
         show_all_columns: If True, show all available columns; otherwise show only defaults
     """
     if df.empty:
@@ -244,7 +244,7 @@ def render_results_table(
     # Display the table
     st.dataframe(
         styler,
-        use_container_width=use_container_width,
+        width=width,
         hide_index=True
     )
 
