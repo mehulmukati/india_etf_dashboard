@@ -91,7 +91,7 @@ def fetch_etf_master() -> pd.DataFrame:
     Only fetches active ETFs.
 
     Returns:
-        pd.DataFrame with columns: id, scheme_code, nse_code,
+        pd.DataFrame with columns: id, scheme_code, nse_code, scheme_name,
                                    is_active, index_tracked, category
     """
     client = get_supabase_client()
@@ -108,6 +108,16 @@ def fetch_etf_master() -> pd.DataFrame:
 
     df = pd.DataFrame(response.data)
     # return df[MASTER_COLUMNS]
+    
+
+    # Warn loudly about any missing columns instead of silently dropping
+    missing = [col for col in MASTER_COLUMNS if col not in df.columns]
+    if missing:
+        raise ValueError(
+            f"fetch_etf_master: Supabase did not return expected columns: {missing}. "
+            f"Check MASTER_COLUMNS in config.py matches the actual table schema."
+        )
+
     return df[[col for col in MASTER_COLUMNS if col in df.columns]]
 
 
