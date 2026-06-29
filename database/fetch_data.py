@@ -20,8 +20,8 @@ from config import (
     MASTER_COLUMNS,
     NAV_COLUMNS,
     OHLC_COLUMNS,
-    NSE_HOLIDAYS_PATH,       # ← add this to config.py (see note below)
-    NSE_HOLIDAYS_SEGMENT,    # ← add this to config.py (see note below)
+    NSE_HOLIDAYS_PATH,
+    NSE_HOLIDAYS_SEGMENT,
 )
 from database.client import get_supabase_client
 
@@ -107,8 +107,6 @@ def fetch_etf_master() -> pd.DataFrame:
         return pd.DataFrame(columns=MASTER_COLUMNS)
 
     df = pd.DataFrame(response.data)
-    # return df[MASTER_COLUMNS]
-    
 
     # Warn loudly about any missing columns instead of silently dropping
     missing = [col for col in MASTER_COLUMNS if col not in df.columns]
@@ -125,6 +123,7 @@ def fetch_etf_master() -> pd.DataFrame:
 def fetch_etf_nav() -> pd.DataFrame:
     """
     Fetch rolling NAV data from Supabase up to the last trading date.
+    Uses pagination to retrieve all records.
 
     Returns:
         pd.DataFrame with columns: id, scheme_code, trade_date, nav
@@ -135,25 +134,30 @@ def fetch_etf_nav() -> pd.DataFrame:
     cutoff_date = last_trading_date - timedelta(days=HISTORICAL_DATA_DAYS)
 
     all_data = []
-       page = 0
-       page_size = 1000  # max per request
+    page = 0
+    page_size = 1000  # Supabase max per request
 
     while True:
-    response = (
-        client.table(TABLE_ETF_NAV)
-        .select(",".join(NAV_COLUMNS))
-        .gte("trade_date", cutoff_date.isoformat())
-        .lte("trade_date", last_trading_date.isoformat())   # ← key fix
-        .range(page * page_size, (page + 1) * page_size - 1)  # pagination
-        .execute()
-    )
+        response = (
+            client.table(TABLE_ETF_NAV)
+            .select(",".join(NAV_COLUMNS))
+            .gte("trade_date", cutoff_date.isoformat())
+            .lte("trade_date", last_trading_date.isoformat())
+            .range(page * page_size, (page + 1) * page_size - 1)
+            .execute()
+        )
 
-    if not response.data:
+        if not response.data:
+            break
+
+        all_data.extend(response.data)
+        page += 1
+
+    if not all_data:
         return pd.DataFrame(columns=NAV_COLUMNS)
 
-    df = pd.DataFrame(response.data)
+    df = pd.DataFrame(all_data)
     df["trade_date"] = pd.to_datetime(df["trade_date"])
-#    return df[NAV_COLUMNS]
     return df[[col for col in NAV_COLUMNS if col in df.columns]]
 
 
@@ -161,6 +165,7 @@ def fetch_etf_nav() -> pd.DataFrame:
 def fetch_etf_ohlc() -> pd.DataFrame:
     """
     Fetch rolling OHLC data from Supabase up to the last trading date.
+    Uses pagination to retrieve all records.
 
     Returns:
         pd.DataFrame with columns: id, nse_code, trade_date,
@@ -172,28 +177,33 @@ def fetch_etf_ohlc() -> pd.DataFrame:
     cutoff_date = last_trading_date - timedelta(days=HISTORICAL_DATA_DAYS)
 
     all_data = []
-       page = 0
-       page_size = 1000  # max per request
+    page = 0
+    page_size = 1000  # Supabase max per request
 
     while True:
-    response = (
-        client.table(TABLE_ETF_OHLC)
-        .select(",".join(OHLC_COLUMNS))
-        .gte("trade_date", cutoff_date.isoformat())
-        .lte("trade_date", last_trading_date.isoformat())   # ← key fix
-        .range(page * page_size, (page + 1) * page_size - 1)  # pagination
-        .execute()
-    )
+        response = (
+            client.table(TABLE_ETF_OHLC)
+            .select(",".join(OHLC_COLUMNS))
+            .gte("trade_date", cutoff_date.isoformat())
+            .lte("trade_date", last_trading_date.isoformat())
+            .range(page * page_size, (page + 1) * page_size - 1)
+            .execute()
+        )
 
-    if not response.data:
+        if not response.data:
+            break
+
+        all_data.extend(response.data)
+        page += 1
+
+    if not all_data:
         return pd.DataFrame(columns=OHLC_COLUMNS)
 
-    df = pd.DataFrame(response.data)
+    df = pd.DataFrame(all_data)
     df["trade_date"] = pd.to_datetime(df["trade_date"])
 
     numeric_cols = ["open", "high", "low", "close", "volume", "turnover"]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
-#    return df[OHLC_COLUMNS]
     return df[[col for col in OHLC_COLUMNS if col in df.columns]]
