@@ -135,8 +135,8 @@ def fetch_etf_nav() -> pd.DataFrame:
     cutoff_date = last_trading_date - timedelta(days=HISTORICAL_DATA_DAYS)
 
     all_data = []
-        page = 0
-        page_size = 1000  # max per request
+       page = 0
+       page_size = 1000  # max per request
 
     while True:
     response = (
@@ -172,8 +172,8 @@ def fetch_etf_ohlc() -> pd.DataFrame:
     cutoff_date = last_trading_date - timedelta(days=HISTORICAL_DATA_DAYS)
 
     all_data = []
-        page = 0
-        page_size = 1000  # max per request
+       page = 0
+       page_size = 1000  # max per request
 
     while True:
     response = (
