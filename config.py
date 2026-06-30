@@ -14,8 +14,13 @@ MASTER_CACHE_TTL = 86400  # 24 hours
 # Default risk-free rate (annualized, in percentage)
 DEFAULT_RISK_FREE_RATE = 0.065
 
-# Rolling window for historical data (in days)
-HISTORICAL_DATA_DAYS = 365
+# Rolling window for historical data (in calendar days).
+# Must comfortably exceed the longest trading-day lookback used anywhere in
+# calculations.py (252 trading days for 12m return/Sharpe/volatility), with
+# a buffer for weekends and NSE holidays. ~365 calendar days only yields
+# ~246-251 actual trading days, which is NOT enough to ever satisfy the
+# strict 252-trading-day requirement - hence 400 days here for margin.
+HISTORICAL_DATA_DAYS = 400
 
 # DMA periods
 DMA_PERIODS = [50, 100, 200]
@@ -27,8 +32,10 @@ VOLUME_AVG_5D_WINDOW = 5
 
 # Return calculation periods (in months)
 RETURN_PERIODS = [3, 6, 9, 12]
-# Convert to approximate number of trading days (assuming ~22 trading days per month)
-RETURN_PERIODS_DAYS = {3: 66, 6: 132, 9: 198, 12: 264}
+# Convert to approximate number of trading days, using 21 trading days/month
+# (252 / 12 = 21), consistent with the 252-trading-day/year convention used
+# for annualization and volatility elsewhere in calculations.py
+RETURN_PERIODS_DAYS = {3: 63, 6: 126, 9: 189, 12: 252}
 
 # Average return period configurations
 AVERAGE_RETURN_PERIODS = [
