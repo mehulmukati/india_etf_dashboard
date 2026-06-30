@@ -119,11 +119,19 @@ def fetch_etf_master() -> pd.DataFrame:
     return df[[col for col in MASTER_COLUMNS if col in df.columns]]
 
 
-@st.cache_data(ttl=NAV_CACHE_TTL)
+
+NAV_LOOKBACK_DAYS = 5  # safety window to find each ETF's latest available NAV
+
+.cache_data(ttl=NAV_CACHE_TTL)
 def fetch_etf_nav() -> pd.DataFrame:
     """
-    Fetch rolling NAV data from Supabase up to the last trading date.
-    Uses pagination to retrieve all records.
+    Fetch each ETF's most recent available NAV record, used for display and
+    premium/discount calculation. An ETF missing a record on the last trading
+    date (e.g. due to a data feed delay) will still show its latest known NAV
+    rather than being dropped.
+
+    Looks back NAV_LOOKBACK_DAYS from the last trading date and keeps, per
+    scheme_code, only the row with the most recent trade_date.
 
     Returns:
         pd.DataFrame with columns: id, scheme_code, trade_date, nav
@@ -131,7 +139,7 @@ def fetch_etf_nav() -> pd.DataFrame:
     client = get_supabase_client()
 
     last_trading_date = get_last_trading_date(NSE_HOLIDAYS_SEGMENT)
-    cutoff_date = last_trading_date - timedelta(days=HISTORICAL_DATA_DAYS)
+    cutoff_date = last_trading_date - timedelta(days=NAV_LOOKBACK_DAYS)
 
     all_data = []
     page = 0
@@ -143,6 +151,8 @@ def fetch_etf_nav() -> pd.DataFrame:
             .select(",".join(NAV_COLUMNS))
             .gte("trade_date", cutoff_date.isoformat())
             .lte("trade_date", last_trading_date.isoformat())
+            .order("trade_date", desc=True)
+            .order("scheme_code")
             .range(page * page_size, (page + 1) * page_size - 1)
             .execute()
         )
@@ -153,12 +163,22 @@ def fetch_etf_nav() -> pd.DataFrame:
         all_data.extend(response.data)
         page += 1
 
+        if len(response.data) < page_size:
+            break  # last page reached
+
     if not all_data:
         return pd.DataFrame(columns=NAV_COLUMNS)
 
     df = pd.DataFrame(all_data)
     df["trade_date"] = pd.to_datetime(df["trade_date"])
-    return df[[col for col in NAV_COLUMNS if col in df.columns]]
+
+    # Keep only the most recent record per ETF (rows already sorted desc)
+    df = df.sort_values("trade_date", ascending=False).drop_duplicates(
+        subset="scheme_code", keep="first"
+    )
+
+    return df[[col for col in NAV_COLUMNS if col in df.columns]].reset_index(drop=True)
+
 
 
 @st.cache_data(ttl=OHLC_CACHE_TTL)
