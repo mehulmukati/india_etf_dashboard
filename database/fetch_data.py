@@ -91,8 +91,8 @@ def fetch_etf_master() -> pd.DataFrame:
     Only fetches active ETFs.
 
     Returns:
-        pd.DataFrame with columns: id, scheme_code, nse_code, scheme_name,
-                                   is_active, index_tracked, category
+        pd.DataFrame with columns: scheme_code, nse_code, scheme_name,
+                                   index_tracked, category
     """
     client = get_supabase_client()
 
@@ -134,7 +134,7 @@ def fetch_etf_nav() -> pd.DataFrame:
     scheme_code, only the row with the most recent trade_date.
 
     Returns:
-        pd.DataFrame with columns: id, scheme_code, trade_date, nav
+        pd.DataFrame with columns: scheme_code, trade_date, nav
     """
     client = get_supabase_client()
 
@@ -188,8 +188,8 @@ def fetch_etf_ohlc() -> pd.DataFrame:
     Uses pagination to retrieve all records.
 
     Returns:
-        pd.DataFrame with columns: id, nse_code, trade_date,
-                                   open, high, low, close, volume, turnover
+        pd.DataFrame with columns: nse_code, trade_date,
+                                   high, close, volume, turnover
     """
     client = get_supabase_client()
 
@@ -222,7 +222,7 @@ def fetch_etf_ohlc() -> pd.DataFrame:
     df = pd.DataFrame(all_data)
     df["trade_date"] = pd.to_datetime(df["trade_date"])
 
-    numeric_cols = ["open", "high", "low", "close", "volume", "turnover"]
+    numeric_cols = ["high", "close", "volume", "turnover"]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
