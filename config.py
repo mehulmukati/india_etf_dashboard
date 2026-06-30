@@ -51,6 +51,6 @@ TABLE_ETF_NAV = "etf_nav"
 TABLE_ETF_OHLC = "etf_ohlc"
 
 # Column name mappings
-MASTER_COLUMNS = ["scheme_code", "nse_code", "scheme_name", "is_active", "index_tracked", "category"]
+MASTER_COLUMNS = ["scheme_code", "nse_code", "scheme_name", "index_tracked", "category"]
 NAV_COLUMNS = ["scheme_code", "trade_date", "nav"]
 OHLC_COLUMNS = ["nse_code", "trade_date", "high", "close", "volume", "turnover"]
