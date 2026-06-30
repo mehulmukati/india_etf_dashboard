@@ -184,7 +184,7 @@ def apply_min_annual_return_filter(
         return df
     
     result = df.copy()
-    result = result[result['12m_annualized'] >= min_annual_return]
+    result = result[result['12m_return'] >= min_annual_return]
     
     return result
 
