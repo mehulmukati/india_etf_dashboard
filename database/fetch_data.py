@@ -122,7 +122,7 @@ def fetch_etf_master() -> pd.DataFrame:
 
 NAV_LOOKBACK_DAYS = 5  # safety window to find each ETF's latest available NAV
 
-.cache_data(ttl=NAV_CACHE_TTL)
+@st.cache_data(ttl=NAV_CACHE_TTL)
 def fetch_etf_nav() -> pd.DataFrame:
     """
     Fetch each ETF's most recent available NAV record, used for display and
