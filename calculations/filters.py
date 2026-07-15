@@ -62,7 +62,19 @@ def get_available_metric_options() -> List[Dict]:
 def calculate_average_metrics(df: pd.DataFrame, metric_type: str = 'return') -> pd.DataFrame:
     """
     Calculate average metrics across multiple periods.
-    
+
+    For metric_type == 'return', the average for each configured group
+    (e.g. 3/6/9/12m, 3/6m, 9/12m, 6/9/12m) is the sum of whichever period
+    returns are available divided by the FIXED number of periods in that
+    group (4, 2, or 3 respectively) - NOT by however many periods happen
+    to have data. A period that is unavailable (NaN, typically because the
+    ETF doesn't have enough price history) contributes 0 to the sum. A
+    group's average is only NaN if every single period in that group is
+    unavailable; otherwise it is always divided by the group's fixed size.
+
+    For metric_type == 'sharpe', behavior is unchanged (mean of available
+    values, skipping NaNs) - not in scope for this fix.
+
     Args:
         df: DataFrame with individual period metrics
         metric_type: Either 'return' or 'sharpe'
@@ -75,18 +87,31 @@ def calculate_average_metrics(df: pd.DataFrame, metric_type: str = 'return') -> 
     for avg_config in AVERAGE_RETURN_PERIODS:
         periods = avg_config['periods']
         suffix = '_'.join([str(p) for p in periods])
-        
+
         if metric_type == 'return':
             col_key = f'avg_{suffix}m_return'
             source_cols = [f'{p}m_return' for p in periods]
-        else:  # sharpe
+
+            # Reindex so a period column that's missing from df entirely
+            # is treated as unavailable (NaN) for every row, rather than
+            # being silently dropped from both the sum and the divisor.
+            sub = df.reindex(columns=source_cols)
+
+            divisor = len(periods)  # ALWAYS the fixed group size (4, 2, or 3)
+            all_missing = sub.isna().all(axis=1)
+            row_sum = sub.fillna(0).sum(axis=1)
+
+            avg_values = row_sum / divisor
+            avg_values[all_missing] = np.nan
+
+            df[col_key] = avg_values
+        else:  # sharpe - left untouched, not in scope
             col_key = f'avg_{suffix}m_sharpe'
             source_cols = [f'{p}m_sharpe' for p in periods]
-        
-        # Calculate mean of available values
-        available_cols = [col for col in source_cols if col in df.columns]
-        if available_cols:
-            df[col_key] = df[available_cols].mean(axis=1, skipna=True)
+
+            available_cols = [col for col in source_cols if col in df.columns]
+            if available_cols:
+                df[col_key] = df[available_cols].mean(axis=1, skipna=True)
     
     return df
 
