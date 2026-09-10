@@ -125,6 +125,7 @@ def build_category_filter() -> str:
         'All',
         'Broad Based',
         'Thematic/Sectoral',
+        'Strategy',
         'Foreign',
         'All except Foreign'
     ]
@@ -132,7 +133,7 @@ def build_category_filter() -> str:
     selected = st.selectbox(
         "Category",
         options=categories,
-        index=0,
+        index=5,
         help="Filter ETFs by category"
     )
     
