@@ -23,7 +23,13 @@ def main():
         return
 
     with st.spinner("Calculating metrics..."):
-        results_df = calculate_all_etf_metrics(master_df, nav_df, ohlc_df, filters['risk_free_rate'])
+        results_df = calculate_all_etf_metrics(
+            master_df,
+            nav_df,
+            ohlc_df,
+            filters['risk_free_rate'],
+            filters['calculation_method']
+        )
 
     if results_df.empty:
         st.warning("No ETF data available for analysis.")

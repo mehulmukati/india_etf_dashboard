@@ -26,7 +26,8 @@ def calculate_all_etf_metrics(
     master_df: pd.DataFrame,
     nav_df: pd.DataFrame,
     ohlc_df: pd.DataFrame,
-    risk_free_rate: float
+    risk_free_rate: float,
+    calculation_method: str
 ) -> pd.DataFrame:
     """
     Calculate metrics for all ETFs in the master list.
@@ -36,6 +37,7 @@ def calculate_all_etf_metrics(
         nav_df: NAV data
         ohlc_df: OHLC data
         risk_free_rate: Risk-free rate for Sharpe calculation
+        calculation_method: Period lookback methodology selected by the user
         
     Returns:
         DataFrame with all calculated metrics
@@ -50,7 +52,8 @@ def calculate_all_etf_metrics(
             scheme_code=scheme_code,
             ohlc_df=ohlc_df,
             nav_df=nav_df,
-            risk_free_rate=risk_free_rate
+            risk_free_rate=risk_free_rate,
+            calculation_method=calculation_method
         )
         
         if metrics:

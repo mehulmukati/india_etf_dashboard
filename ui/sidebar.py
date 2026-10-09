@@ -7,6 +7,23 @@ from config import (
     DMA_PERIODS
 )
 from calculations.filters import get_available_metric_options
+from calculations.metrics import (
+    CALCULATION_METHOD_252_DAYS,
+    CALCULATION_METHOD_EXACT_MONTHS,
+)
+
+
+def build_calculation_method_selector() -> str:
+    """Build the period calculation methodology selector."""
+    return st.radio(
+        "Calculation Method",
+        options=[CALCULATION_METHOD_252_DAYS, CALCULATION_METHOD_EXACT_MONTHS],
+        index=0,
+        help=(
+            "Choose between the existing 63/126/189/252 trading-day windows "
+            "and exact calendar-month windows."
+        ),
+    )
 
 
 def build_metric_dropdown() -> str:
@@ -186,6 +203,11 @@ def build_sidebar() -> Dict:
     """
     with st.sidebar:
         st.header("Filters")
+
+        # Keep this as the first control in the side panel so the selected
+        # methodology is clear before any metric or filter choices.
+        calculation_method = build_calculation_method_selector()
+        st.divider()
         
         # Main metric dropdown
         selected_metric = build_metric_dropdown()
@@ -225,6 +247,7 @@ def build_sidebar() -> Dict:
         )
         
         return {
+            'calculation_method': calculation_method,
             'selected_metric': selected_metric,
             'risk_free_rate': risk_free_rate,
             'above_50_dma': above_50_dma,

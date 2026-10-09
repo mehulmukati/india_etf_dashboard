@@ -41,7 +41,9 @@ DEFAULT_COLUMNS = [
     'Index Tracked',
     'NSE Code',
     'Last Close',
+    'Close Price Date',
     'Last NAV',
+    'NAV Date',
     'Prem/Dis to NAV %',
     '50 DMA',
     '100 DMA',
@@ -56,7 +58,9 @@ COLUMN_MAPPING = {
     'index_tracked': 'Index Tracked',
     'category': 'Category',
     'last_close': 'Last Close',
+    'close_date': 'Close Price Date',
     'last_nav': 'Last NAV',
+    'nav_date': 'NAV Date',
     'premium_discount_pct': 'Prem/Dis to NAV %',
     'volatility': 'Volatility (Ann.)',
     'high_52w': '52w High',
@@ -166,7 +170,9 @@ def get_table_column_config() -> dict:
         'Index Tracked': {'width': '200px'},
         'NSE Code': {'width': '100px'},
         'Last Close': {'type': 'currency'},
+        'Close Price Date': {'width': '125px'},
         'Last NAV': {'type': 'currency'},
+        'NAV Date': {'width': '125px'},
         'Prem/Dis to NAV %': {'type': 'percentage', 'format': '{:.2f}'},
         'Volatility (Ann.)': {'type': 'percentage', 'format': '{:.2f}'},
         '52w High': {'type': 'currency'},
@@ -203,6 +209,8 @@ def render_results_table(
         'Last Close', 'Last NAV', '52w High',
         '1M Median Volume', '5D Median Volume'
     ]
+
+    date_columns = ['Close Price Date', 'NAV Date']
     
     # Percentage columns – dynamically detect returns + premium/discount + volatility
     percentage_columns = []
@@ -237,6 +245,12 @@ def render_results_table(
     for col in percentage_columns:
         if col in display_df.columns:
             styler = styler.format({col: format_percentage})
+
+    for col in date_columns:
+        if col in display_df.columns:
+            styler = styler.format(
+                {col: lambda value: value.strftime('%Y-%m-%d') if not pd.isna(value) else 'N/A'}
+            )
     
     # Highlight the selected metric column
     metric_display_name = get_metric_display_name(selected_metric)

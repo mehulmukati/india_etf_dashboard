@@ -14,6 +14,11 @@ from config import (
 )
 
 
+CALCULATION_METHOD_252_DAYS = "252 Trading Days"
+CALCULATION_METHOD_EXACT_MONTHS = "Exact 3/6/9/12 Months"
+EXACT_MONTH_LOOKBACK_DAYS = 5
+
+
 def has_sufficient_history(prices: pd.Series, days: int) -> bool:
     """
     Strict check for whether a price series has enough history to compute
@@ -80,6 +85,15 @@ def calculate_annualized_return(prices: pd.Series, days: int) -> float:
         return np.nan
 
     return ((1 + raw_return) ** (1 / years)) - 1
+
+
+def calculate_annualized_return_from_months(prices: pd.Series, months: int) -> float:
+    """Calculate an annualized return using an exact calendar-month window."""
+    raw_return = calculate_returns_from_exact_months(prices, months)
+    if np.isnan(raw_return) or months <= 0:
+        return np.nan
+
+    return (1 + raw_return) ** (12 / months) - 1
 
 
 def calculate_volatility(prices: pd.Series, days: int, annualize: bool = True) -> float:
@@ -158,6 +172,89 @@ def calculate_sharpe_ratio(prices: pd.Series, days: int, risk_free_rate: float =
 
     sharpe = (annualized_return - risk_free_rate) / annualized_vol
     return sharpe
+
+
+def find_exact_month_start(prices: pd.Series, months: int) -> Optional[pd.Timestamp]:
+    """Find the exact calendar-month start, falling back up to five days."""
+    if prices.empty or months <= 0:
+        return None
+
+    end_date = pd.Timestamp(prices.index[-1]).normalize()
+    target_date = end_date - pd.DateOffset(months=months)
+    available_dates = {pd.Timestamp(value).normalize(): value for value in prices.index}
+
+    for offset in range(EXACT_MONTH_LOOKBACK_DAYS + 1):
+        candidate = (target_date - pd.Timedelta(days=offset)).normalize()
+        if candidate in available_dates:
+            return available_dates[candidate]
+
+    return None
+
+
+def get_exact_month_prices(prices: pd.Series, months: int) -> pd.Series:
+    """Return prices from the resolved exact-month boundary through the end."""
+    start_date = find_exact_month_start(prices, months)
+    if start_date is None:
+        return pd.Series(dtype=float)
+
+    return prices.loc[start_date:]
+
+
+def calculate_returns_from_exact_months(prices: pd.Series, months: int) -> float:
+    """Calculate return between the resolved exact-month boundary and the end."""
+    period_prices = get_exact_month_prices(prices, months)
+    if len(period_prices) < 2:
+        return np.nan
+
+    start_price = period_prices.iloc[0]
+    end_price = period_prices.iloc[-1]
+    if pd.isna(start_price) or pd.isna(end_price) or start_price == 0:
+        return np.nan
+
+    return (end_price - start_price) / start_price
+
+
+def calculate_volatility_from_exact_months(
+    prices: pd.Series,
+    months: int,
+    annualize: bool = True
+) -> float:
+    """Calculate volatility over the resolved exact-month window."""
+    period_prices = get_exact_month_prices(prices, months)
+    if len(period_prices) < 2:
+        return np.nan
+
+    returns = period_prices.pct_change().dropna()
+    if returns.empty:
+        return np.nan
+
+    volatility = returns.std()
+    if pd.isna(volatility) or volatility == 0:
+        return np.nan
+
+    return volatility * np.sqrt(252) if annualize else volatility
+
+
+def calculate_sharpe_ratio_from_exact_months(
+    prices: pd.Series,
+    months: int,
+    risk_free_rate: float = DEFAULT_RISK_FREE_RATE
+) -> float:
+    """Calculate annualized Sharpe ratio over the exact-month window."""
+    period_prices = get_exact_month_prices(prices, months)
+    if len(period_prices) < 2:
+        return np.nan
+
+    returns = period_prices.pct_change().dropna()
+    if returns.empty or returns.std() == 0:
+        return np.nan
+
+    annualized_return = returns.mean() * 252
+    annualized_volatility = returns.std() * np.sqrt(252)
+    if pd.isna(annualized_volatility) or annualized_volatility == 0:
+        return np.nan
+
+    return (annualized_return - risk_free_rate) / annualized_volatility
 
 
 def calculate_dma(prices: pd.Series, period: int) -> float:
@@ -327,7 +424,8 @@ def calculate_all_metrics_for_etf(
     scheme_code: str,
     ohlc_df: pd.DataFrame,
     nav_df: pd.DataFrame,
-    risk_free_rate: float = DEFAULT_RISK_FREE_RATE
+    risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
+    calculation_method: str = CALCULATION_METHOD_252_DAYS
 ) -> Dict:
     """
     Calculate all metrics for a single ETF.
@@ -342,6 +440,8 @@ def calculate_all_metrics_for_etf(
         ohlc_df: DataFrame with OHLC data
         nav_df: DataFrame with NAV data
         risk_free_rate: Annual risk-free rate
+        calculation_method: Either the existing 252-trading-day method or
+            exact calendar-month periods
 
     Returns:
         Dictionary containing all calculated metrics
@@ -365,19 +465,45 @@ def calculate_all_metrics_for_etf(
     else:
         last_nav = np.nan
 
-    # Calculate returns for different periods
+    # Calculate returns for different periods. Data ingress is shared; only
+    # the lookback methodology changes here.
     returns = {}
-    for period_name, days in RETURN_PERIODS_DAYS.items():
-        returns[f'{period_name}m_return'] = calculate_returns(prices, days)
-        returns[f'{period_name}m_annualized'] = calculate_annualized_return(prices, days)
+    if calculation_method == CALCULATION_METHOD_EXACT_MONTHS:
+        for period_name in RETURN_PERIODS_DAYS:
+            returns[f'{period_name}m_return'] = calculate_returns_from_exact_months(
+                prices, period_name
+            )
+            returns[f'{period_name}m_annualized'] = calculate_annualized_return_from_months(
+                prices, period_name
+            )
+    else:
+        for period_name, days in RETURN_PERIODS_DAYS.items():
+            returns[f'{period_name}m_return'] = calculate_returns(prices, days)
+            returns[f'{period_name}m_annualized'] = calculate_annualized_return(prices, days)
 
     # Calculate Sharpe ratios
     sharpe = {}
-    for period_name, days in RETURN_PERIODS_DAYS.items():
-        sharpe[f'{period_name}m_sharpe'] = calculate_sharpe_ratio(prices, days, risk_free_rate)
+    if calculation_method == CALCULATION_METHOD_EXACT_MONTHS:
+        for period_name in RETURN_PERIODS_DAYS:
+            sharpe[f'{period_name}m_sharpe'] = calculate_sharpe_ratio_from_exact_months(
+                prices, period_name, risk_free_rate
+            )
+    else:
+        for period_name, days in RETURN_PERIODS_DAYS.items():
+            sharpe[f'{period_name}m_sharpe'] = calculate_sharpe_ratio(
+                prices, days, risk_free_rate
+            )
 
     # Calculate volatility (1 year)
-    volatility = calculate_volatility(prices, 252)
+    volatility = (
+        calculate_volatility_from_exact_months(prices, 12)
+        if calculation_method == CALCULATION_METHOD_EXACT_MONTHS
+        else calculate_volatility(prices, 252)
+    )
+
+    nav_date = pd.NaT
+    if not last_nav_row.empty:
+        nav_date = last_nav_row['trade_date']
 
     # Calculate DMAs
     dmas = {}
@@ -398,7 +524,9 @@ def calculate_all_metrics_for_etf(
     return {
         'nse_code': nse_code,
         'last_close': last_close,
+        'close_date': prices.index[-1],
         'last_nav': last_nav,
+        'nav_date': nav_date,
         'premium_discount_pct': prem_dis,
         'volatility': volatility,
         'high_52w': high_52w,
