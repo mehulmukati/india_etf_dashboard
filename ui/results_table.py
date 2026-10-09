@@ -6,19 +6,19 @@ import pandas as pd
 from typing import List, Optional
 
 
-def format_currency(value: float) -> str:
-    """Format a value as Indian currency."""
+def format_currency(value: float, decimals: int = 2) -> str:
+    """Format a value as Indian currency with the requested precision."""
     if pd.isna(value):
         return "N/A"
     
     if value >= 1_00_00_000:  # 1 crore
-        return f"₹{value/1_00_00_000:.2f} Cr"
+        return f"₹{value/1_00_00_000:.{decimals}f} Cr"
     elif value >= 1_00_000:  # 1 lakh
-        return f"₹{value/1_00_000:.2f} L"
+        return f"₹{value/1_00_000:.{decimals}f} L"
     elif value >= 1000:
-        return f"₹{value/1000:.2f} K"
+        return f"₹{value/1000:.{decimals}f} K"
     else:
-        return f"₹{value:.2f}"
+        return f"₹{value:.{decimals}f}"
 
 
 def format_percentage(value: float, decimals: int = 2) -> str:
@@ -26,6 +26,20 @@ def format_percentage(value: float, decimals: int = 2) -> str:
     if pd.isna(value):
         return "N/A"
     return f"{value * 100:.{decimals}f}%"
+
+
+def format_percentage_points(value: float, decimals: int = 2) -> str:
+    """Format a value already expressed in percentage points."""
+    if pd.isna(value):
+        return "N/A"
+    return f"{value:.{decimals}f}%"
+
+
+def format_date(value) -> str:
+    """Format timestamp-like values as an ISO calendar date only."""
+    if pd.isna(value):
+        return "N/A"
+    return pd.Timestamp(value).strftime('%Y-%m-%d')
 
 
 def format_number(value: float, decimals: int = 2) -> str:
@@ -205,22 +219,32 @@ def render_results_table(
     display_df = prepare_display_dataframe(df, selected_metric, show_all_columns)
     
     # Format numeric columns
-    numeric_columns = [
-        'Last Close', 'Last NAV', '52w High',
-        '1M Median Volume', '5D Median Volume'
-    ]
-
+    currency_columns = ['Last Close', 'Last NAV', '52w High']
+    dma_columns = ['50 DMA', '100 DMA', '200 DMA']
+    five_day_volume_columns = ['5D Median Volume']
+    no_decimal_currency_columns = ['5D Avg Traded Value']
     date_columns = ['Close Price Date', 'NAV Date']
     
-    # Percentage columns – dynamically detect returns + premium/discount + volatility
+    # Percentage columns – dynamically detect returns, annualized returns,
+    # premium/discount, and volatility.
     percentage_columns = []
+    sharpe_columns = []
+    premium_discount_columns = []
     # Reverse mapping: display name -> internal key
     rev_mapping = {v: k for k, v in COLUMN_MAPPING.items()}
     for col in display_df.columns:
         internal = rev_mapping.get(col)
         if internal:
-            if internal.endswith('_return') or internal == 'premium_discount_pct' or internal == 'volatility':
+            if (
+                internal.endswith('_return')
+                or internal.endswith('_annualized')
+                or internal == 'volatility'
+            ):
                 percentage_columns.append(col)
+            elif internal.endswith('_sharpe'):
+                sharpe_columns.append(col)
+            elif internal == 'premium_discount_pct':
+                premium_discount_columns.append(col)
     
     # Apply formatting using styler
     def format_column(value, col_type):
@@ -233,33 +257,49 @@ def render_results_table(
         else:
             return format_number(value)
     
-    # Create styled dataframe
-    styler = display_df.style
-    
-    # Apply formatting to numeric columns
-    for col in numeric_columns:
+    # Build one formatter mapping. Calling Styler.format repeatedly resets
+    # formatters registered by earlier calls, so all column formatters must be
+    # applied together.
+    formatters = {}
+
+    # Apply Indian currency formatting to prices and 52-week high.
+    for col in currency_columns:
         if col in display_df.columns:
-            styler = styler.format({col: format_currency})
+            formatters[col] = format_currency
+
+    # Apply two-decimal numeric formatting to DMA values.
+    for col in dma_columns:
+        if col in display_df.columns:
+            formatters[col] = lambda value: format_number(value, 2)
+
+    # Volumes are counts, so display the requested five-day volume with no decimals.
+    for col in five_day_volume_columns:
+        if col in display_df.columns:
+            formatters[col] = lambda value: format_number(value, 0)
+
+    # Traded value retains Indian currency notation but has no decimals.
+    for col in no_decimal_currency_columns:
+        if col in display_df.columns:
+            formatters[col] = lambda value: format_currency(value, 0)
     
     # Apply formatting to percentage columns
     for col in percentage_columns:
         if col in display_df.columns:
-            styler = styler.format({col: format_percentage})
+            formatters[col] = format_percentage
+
+    for col in premium_discount_columns:
+        if col in display_df.columns:
+            formatters[col] = format_percentage_points
+
+    for col in sharpe_columns:
+        if col in display_df.columns:
+            formatters[col] = lambda value: format_number(value, 2)
 
     for col in date_columns:
         if col in display_df.columns:
-            styler = styler.format(
-                {col: lambda value: value.strftime('%Y-%m-%d') if not pd.isna(value) else 'N/A'}
-            )
-    
-    # Highlight the selected metric column
-    metric_display_name = get_metric_display_name(selected_metric)
-    
-    if metric_display_name in display_df.columns:
-        styler = styler.highlight_max(
-            subset=[metric_display_name],
-            props='background-color: #d4edda; color: #155724'
-        )
+            formatters[col] = format_date
+
+    styler = display_df.style.format(formatters)
     
     # Display the table
     st.dataframe(
