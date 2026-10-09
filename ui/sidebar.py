@@ -18,7 +18,7 @@ def build_calculation_method_selector() -> str:
     return st.radio(
         "Calculation Method",
         options=[CALCULATION_METHOD_252_DAYS, CALCULATION_METHOD_EXACT_MONTHS],
-        index=0,
+        index=1,
         help=(
             "Choose between the existing 63/126/189/252 trading-day windows "
             "and exact calendar-month windows."
