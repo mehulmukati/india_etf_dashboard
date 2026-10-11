@@ -59,10 +59,10 @@ DEFAULT_COLUMNS = [
     'Last NAV',
     'NAV Date',
     'Prem/Dis to NAV %',
+    '5D Avg Traded Value',
     '50 DMA',
     '100 DMA',
-    '200 DMA',
-    '5D Avg Traded Value'
+    '200 DMA'
 ]
 
 # Column name mapping from internal to display names
@@ -165,7 +165,7 @@ def prepare_display_dataframe(
         # Add the selected metric column if it exists and is not already in defaults
         if metric_col in display_df.columns and metric_col not in columns_to_show:
             # Insert the metric column after Prem/Dis to NAV % (position 6)
-            insert_pos = 6
+            insert_pos = 3
             columns_to_show.insert(insert_pos, metric_col)
         
         # Filter to only columns that exist in the dataframe
