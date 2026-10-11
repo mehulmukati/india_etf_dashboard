@@ -28,7 +28,8 @@ def main():
             nav_df,
             ohlc_df,
             filters['risk_free_rate'],
-            filters['calculation_method']
+            filters['calculation_method'],
+            filters['volume_lookback_days']
         )
 
     if results_df.empty:
@@ -41,6 +42,7 @@ def main():
     render_results_table(
         sorted_df,
         filters['selected_metric'],
+        volume_lookback_days=filters['volume_lookback_days'],
         show_all_columns=filters.get('show_all_columns', False)
     )
     st.divider()

@@ -27,8 +27,9 @@ DMA_PERIODS = [50, 100, 200]
 
 # Volume calculation windows
 VOLUME_MEDIAN_1M_WINDOW = 21  # ~1 trading month
-VOLUME_MEDIAN_5D_WINDOW = 5
-VOLUME_AVG_5D_WINDOW = 5
+VOLUME_LOOKBACK_MIN_DAYS = 5
+VOLUME_LOOKBACK_MAX_DAYS = 30
+VOLUME_LOOKBACK_DEFAULT_DAYS = 5
 
 # Return calculation periods (in months)
 RETURN_PERIODS = [3, 6, 9, 12]
@@ -41,9 +42,8 @@ RETURN_PERIODS_DAYS = {3: 63, 6: 126, 9: 189, 12: 252}
 AVERAGE_RETURN_PERIODS = [
     {'name': 'Avg 3/6/9/12m', 'periods': [3, 6, 9, 12]},
     {'name': 'Avg 3/6m', 'periods': [3, 6]},
-    {'name': 'Avg 6/12m', 'periods': [6, 12]},
-    {'name': 'Avg 9/12m', 'periods': [9, 12]},
-    {'name': 'Avg 6/9/12m', 'periods': [6, 9, 12]}
+    {'name': 'Avg 6/9/12m', 'periods': [6, 9, 12]},
+    {'name': 'Avg 9/12m', 'periods': [9, 12]}
 ]
 
 # Database table names

@@ -4,7 +4,10 @@ UI module for building sidebar filter controls.
 import streamlit as st
 from typing import Dict, List, Tuple
 from config import (
-    DMA_PERIODS
+    DMA_PERIODS,
+    VOLUME_LOOKBACK_DEFAULT_DAYS,
+    VOLUME_LOOKBACK_MAX_DAYS,
+    VOLUME_LOOKBACK_MIN_DAYS
 )
 from calculations.filters import get_available_metric_options
 from calculations.metrics import (
@@ -176,19 +179,31 @@ def build_min_annual_return_filter() -> float:
     return min_return_pct / 100
 
 
+def build_volume_lookback_selector() -> int:
+    """Build the shared lookback selector for volume and traded value."""
+    return st.slider(
+        "Volume / Traded Value Lookback (days)",
+        min_value=VOLUME_LOOKBACK_MIN_DAYS,
+        max_value=VOLUME_LOOKBACK_MAX_DAYS,
+        value=VOLUME_LOOKBACK_DEFAULT_DAYS,
+        step=1,
+        help="Number of recent trading days used for Median Volume and Avg Traded Value"
+    )
+
+
 def build_min_traded_value_filter() -> float:
     """
     Build minimum traded value filter.
     
     Returns:
-        Minimum 5-day average traded value in INR
+        Minimum average traded value in INR
     """
     min_turnover = st.number_input(
-        "Min 5-Day Avg Traded Value (INR)",
+        "Min Avg Traded Value (INR)",
         min_value=0.0,
         value=0.0,
         step=100000.0,
-        help="Minimum average daily turnover over the past 5 days"
+        help="Minimum average daily turnover over the selected lookback period"
     )
     
     return min_turnover
@@ -231,7 +246,12 @@ def build_sidebar() -> Dict:
         
         # Minimum annual return
         min_annual_return = build_min_annual_return_filter()
-        
+
+        st.divider()
+
+        # Shared volume and traded-value calculation window
+        volume_lookback_days = build_volume_lookback_selector()
+
         st.divider()
         
         # Minimum traded value
@@ -255,6 +275,7 @@ def build_sidebar() -> Dict:
             'above_200_dma': above_200_dma,
             'category': category,
             'min_annual_return': min_annual_return,
+            'volume_lookback_days': volume_lookback_days,
             'min_traded_value': min_traded_value,
             'show_all_columns': show_all_columns
         }

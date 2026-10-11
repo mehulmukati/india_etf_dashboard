@@ -251,10 +251,10 @@ def apply_min_traded_value_filter(
     min_traded_value: float
 ) -> pd.DataFrame:
     """
-    Apply minimum 5-day average traded value filter.
+    Apply minimum average traded value filter using the selected lookback.
     
     Args:
-        df: DataFrame with ETF data including avg_turnover_5d column
+        df: DataFrame with ETF data including avg_turnover column
         min_traded_value: Minimum average turnover (in INR)
         
     Returns:
@@ -264,7 +264,7 @@ def apply_min_traded_value_filter(
         return df
     
     result = df.copy()
-    result = result[result['avg_turnover_5d'] >= min_traded_value]
+    result = result[result['avg_turnover'] >= min_traded_value]
     
     return result
 
@@ -290,7 +290,7 @@ def apply_all_filters(
         above_200_dma: Filter for price > 200 DMA
         min_annual_return: Minimum 12-month annualized return
         category: Category filter selection
-        min_traded_value: Minimum 5-day average turnover
+        min_traded_value: Minimum average turnover over the selected lookback
         
     Returns:
         Fully filtered DataFrame
