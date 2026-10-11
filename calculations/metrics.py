@@ -9,8 +9,7 @@ from config import (
     DMA_PERIODS,
     RETURN_PERIODS_DAYS,
     VOLUME_MEDIAN_1M_WINDOW,
-    VOLUME_MEDIAN_5D_WINDOW,
-    VOLUME_AVG_5D_WINDOW
+    VOLUME_LOOKBACK_DEFAULT_DAYS
 )
 
 
@@ -425,7 +424,8 @@ def calculate_all_metrics_for_etf(
     ohlc_df: pd.DataFrame,
     nav_df: pd.DataFrame,
     risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
-    calculation_method: str = CALCULATION_METHOD_252_DAYS
+    calculation_method: str = CALCULATION_METHOD_252_DAYS,
+    volume_lookback_days: int = VOLUME_LOOKBACK_DEFAULT_DAYS
 ) -> Dict:
     """
     Calculate all metrics for a single ETF.
@@ -515,8 +515,8 @@ def calculate_all_metrics_for_etf(
 
     # Calculate volume metrics
     median_volume_1m = calculate_median_volume(volumes, VOLUME_MEDIAN_1M_WINDOW)
-    median_volume_5d = calculate_median_volume(volumes, VOLUME_MEDIAN_5D_WINDOW)
-    avg_turnover_5d = calculate_avg_turnover(turnovers, VOLUME_AVG_5D_WINDOW)
+    median_volume = calculate_median_volume(volumes, volume_lookback_days)
+    avg_turnover = calculate_avg_turnover(turnovers, volume_lookback_days)
 
     # Calculate 52-week high
     high_52w = prices.max() if len(prices) >= 252 else prices.max()
@@ -531,8 +531,8 @@ def calculate_all_metrics_for_etf(
         'volatility': volatility,
         'high_52w': high_52w,
         'median_volume_1m': median_volume_1m,
-        'median_volume_5d': median_volume_5d,
-        'avg_turnover_5d': avg_turnover_5d,
+        'median_volume': median_volume,
+        'avg_turnover': avg_turnover,
         **returns,
         **sharpe,
         **dmas
