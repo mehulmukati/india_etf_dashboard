@@ -106,13 +106,13 @@ for period in ['3', '6', '9', '12']:
 COLUMN_MAPPING['avg_3_6_9_12m_return'] = 'Avg 3/6/9/12M Return'
 COLUMN_MAPPING['avg_3_6m_return'] = 'Avg 3/6M Return'
 COLUMN_MAPPING['avg_6_12m_return'] = 'Avg 6/12M Return'
-COLUMN_MAPPING['avg_6_9_12m_return'] = 'Avg 6/9/12M Return'
 COLUMN_MAPPING['avg_9_12m_return'] = 'Avg 9/12M Return'
+COLUMN_MAPPING['avg_6_9_12m_return'] = 'Avg 6/9/12M Return'
 COLUMN_MAPPING['avg_3_6_9_12m_sharpe'] = 'Avg 3/6/9/12M Sharpe'
 COLUMN_MAPPING['avg_3_6m_sharpe'] = 'Avg 3/6M Sharpe'
 COLUMN_MAPPING['avg_6_12m_sharpe'] = 'Avg 6/12M Sharpe'
-COLUMN_MAPPING['avg_6_9_12m_sharpe'] = 'Avg 6/9/12M Sharpe'
 COLUMN_MAPPING['avg_9_12m_sharpe'] = 'Avg 9/12M Sharpe'
+COLUMN_MAPPING['avg_6_9_12m_sharpe'] = 'Avg 6/9/12M Sharpe'
 
 
 def get_metric_display_name(selected_metric: str) -> str:
@@ -181,7 +181,7 @@ def prepare_display_dataframe(
         # Add the selected metric column if it exists and is not already in defaults
         if metric_col in display_df.columns and metric_col not in columns_to_show:
             # Insert the metric column after Prem/Dis to NAV % (position 6)
-            insert_pos = 6
+            insert_pos = 3
             columns_to_show.insert(insert_pos, metric_col)
         
         # Filter to only columns that exist in the dataframe
