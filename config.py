@@ -41,9 +41,9 @@ RETURN_PERIODS_DAYS = {3: 63, 6: 126, 9: 189, 12: 252}
 AVERAGE_RETURN_PERIODS = [
     {'name': 'Avg 3/6/9/12m', 'periods': [3, 6, 9, 12]},
     {'name': 'Avg 3/6m', 'periods': [3, 6]},
-    {'name': 'Avg 6/12m', 'periods': [6, 12]}
-    {'name': 'Avg 9/12m', 'periods': [9, 12]}
-    {'name': 'Avg 6/9/12m', 'periods': [6, 9, 12]},
+    {'name': 'Avg 6/12m', 'periods': [6, 12]},
+    {'name': 'Avg 9/12m', 'periods': [9, 12]},
+    {'name': 'Avg 6/9/12m', 'periods': [6, 9, 12]}
 ]
 
 # Database table names
