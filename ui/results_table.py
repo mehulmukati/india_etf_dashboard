@@ -4,7 +4,54 @@ UI module for formatting and rendering the results table.
 import streamlit as st
 import pandas as pd
 from typing import List, Optional
-from config import VOLUME_LOOKBACK_DEFAULT_DAYS
+from config import (
+    VOLUME_LOOKBACK_DEFAULT_DAYS,
+    HIGHLIGHT_COLORS,
+)
+
+
+def _get_theme_base() -> str:
+    """Return the active Streamlit theme base ('light' or 'dark')."""
+    try:
+        # Prefer the runtime config value; fall back to the TOML file if present.
+        base = st.get_option("theme.base") or ""
+        if not base:
+            import tomllib
+            from pathlib import Path
+            cfg = Path(__file__).resolve().parent.parent / ".streamlit" / "config.toml"
+            if cfg.exists():
+                with open(cfg, "rb") as f:
+                    base = tomllib.load(f).get("theme", {}).get("base", "")
+    except Exception:
+        base = ""
+    return "dark" if str(base).lower() == "dark" else "light"
+
+
+def build_rank_highlight_styles(
+    df: pd.DataFrame,
+    top_rows: int,
+    next_rows: int,
+) -> dict:
+    """
+    Map row labels to background colors based on their rank position in df.
+
+    The dataframe is expected to already be sorted by the selected metric, so
+    position 0..top_rows-1 get the first color and the following next_rows
+    positions get the second color. Colors are returned as a {label: css}
+    mapping so they stay attached to their rows even when the user re-sorts
+    the table interactively via column headers.
+    """
+    if df.empty or (top_rows <= 0 and next_rows <= 0):
+        return {}
+
+    palette = HIGHLIGHT_COLORS[_get_theme_base()]
+    styles = {}
+    for i, label in enumerate(df.index):
+        if i < top_rows:
+            styles[label] = f"background-color: {palette[0]}"
+        elif i < top_rows + next_rows:
+            styles[label] = f"background-color: {palette[1]}"
+    return styles
 
 
 def format_currency(value: float, decimals: int = 2) -> str:
@@ -221,16 +268,22 @@ def render_results_table(
     selected_metric: str,
     use_container_width: bool = True,
     show_all_columns: bool = False,
-    volume_lookback_days: int = VOLUME_LOOKBACK_DEFAULT_DAYS
+    volume_lookback_days: int = VOLUME_LOOKBACK_DEFAULT_DAYS,
+    highlight_top_rows: int = 0,
+    highlight_next_rows: int = 0
 ) -> None:
     """
     Render the results table with proper formatting and sorting.
     
     Args:
-        df: DataFrame with all calculated and filtered data
+        df: DataFrame with all calculated and filtered data (already sorted
+            by rank for the selected metric)
         selected_metric: Currently selected metric for highlighting
         use_container_width: Whether to use full container width
         show_all_columns: If True, show all available columns; otherwise show only defaults
+        volume_lookback_days: Lookback used for volume/traded-value labels
+        highlight_top_rows: Number of top-ranked rows tinted with the first color
+        highlight_next_rows: Number of rows after those tinted with the second color
     """
     if df.empty:
         st.warning("No ETFs match the selected filters.")
@@ -328,7 +381,18 @@ def render_results_table(
             formatters[col] = format_date
 
     styler = display_df.style.format(formatters)
-    
+
+    # Rank-based row highlighting (assigned before any interactive column-header
+    # sorting; styles are keyed by row label so the color travels with the row).
+    highlight_styles = build_rank_highlight_styles(
+        display_df, highlight_top_rows, highlight_next_rows
+    )
+    if highlight_styles:
+        styler = styler.apply(
+            lambda row: [highlight_styles.get(row.name, "")] * len(row),
+            axis=1,
+        )
+
     # Display the table
     st.dataframe(
         styler,
