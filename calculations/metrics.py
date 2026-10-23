@@ -17,6 +17,113 @@ CALCULATION_METHOD_252_DAYS = "252 Trading Days"
 CALCULATION_METHOD_EXACT_MONTHS = "Exact 3/6/9/12 Months"
 EXACT_MONTH_LOOKBACK_DAYS = 5
 
+# Anchor backfill limits (see align_prices_to_anchor).
+ANCHOR_BACKFILL_CALENDAR_DAYS = 7    # calendar days to search back for the
+                                     # ETF's nearest actual trade on/before
+                                     # the anchor date
+ANCHOR_FFILL_TRADING_DAYS = 400      # max trading days a single stale close
+                                     # may be forward-filled for (safety cap)
+
+
+def resolve_month_anchor(
+    end_date: pd.Timestamp,
+    months: int,
+    holidays: Optional[set] = None
+) -> pd.Timestamp:
+    """
+    Resolve the shared calendar-month anchor date for a window ending at
+    `end_date`.
+
+    The raw anchor is `end_date - months` calendar months. If that day is a
+    weekend or NSE holiday, step BACK one calendar day at a time until a
+    trading day is found (industry best practice: always go back, never
+    forward, so windows are never shorter than requested and never overshoot
+    into extra price moves beyond the bridge gap).
+
+    Args:
+        end_date: Anchor end date (the shared last-trading date)
+        months: Number of calendar months in the lookback window
+        holidays: Set of date objects (NSE holidays); weekends are always skipped
+
+    Returns:
+        Timestamp (normalized) of the resolved anchor trading date
+    """
+    if holidays is None:
+        holidays = set()
+
+    target = pd.Timestamp(end_date).normalize() - pd.DateOffset(months=months)
+    while target.weekday() >= 5 or target.date() in holidays:
+        target -= pd.Timedelta(days=1)
+    return target
+
+
+def align_prices_to_anchor(
+    prices: pd.Series,
+    anchor_date: pd.Timestamp,
+    holidays: Optional[set] = None
+) -> pd.Series:
+    """
+    Align a single ETF's price series to a shared anchor date.
+
+    Rules:
+      1. All trades strictly AFTER `anchor_date` are dropped, so every ETF's
+         window ends on the same date regardless of its own last row.
+      2. If the ETF has no trade exactly ON the anchor date (e.g. it did not
+         trade that day), walk back up to ANCHOR_BACKFILL_CALENDAR_DAYS
+         calendar days to find its nearest actual trade on/before the anchor.
+      3. From that backfilled point, forward-fill through any gap between the
+         backfilled trade and the anchor date, but only across trading days
+         (weekends/holidays excluded) and capped at
+         ANCHOR_FFILL_TRADING_DAYS trading days. Beyond the cap the ETF is
+         treated as having insufficient history (empty series returned).
+
+    Args:
+        prices: Forward-filled-close series indexed by trade date (ascending)
+        anchor_date: Shared anchor trading date to align to
+        holidays: Set of date objects (NSE holidays) used to identify
+                  non-trading days inside gaps
+
+    Returns:
+        Series truncated at the anchor date with the anchor-day price present
+        (either actual or carried forward), or an empty float Series if the
+        ETF cannot be aligned within the caps.
+    """
+    if prices.empty:
+        return pd.Series(dtype=float)
+
+    anchor = pd.Timestamp(anchor_date).normalize()
+    if holidays is None:
+        holidays = set()
+
+    # Rule 1: drop everything after the anchor date.
+    aligned = prices.loc[:anchor]
+    if aligned.empty:
+        return pd.Series(dtype=float)
+
+    last_date = pd.Timestamp(aligned.index[-1]).normalize()
+    if last_date == anchor:
+        return aligned  # ETF actually traded on the anchor date
+
+    # Rule 2: backfill cap - how far back we accept the ETF's last real trade.
+    earliest_acceptable = anchor - pd.Timedelta(days=ANCHOR_BACKFILL_CALENDAR_DAYS)
+    if last_date < earliest_acceptable:
+        return pd.Series(dtype=float)  # too stale to carry to the anchor
+
+    # Rule 3: count trading days strictly between last actual trade and the
+    # anchor (i.e. the number of forward-filled values this alignment needs).
+    fill_days = 0
+    cursor = last_date + pd.Timedelta(days=1)
+    while cursor <= anchor:
+        if cursor.weekday() < 5 and cursor.date() not in holidays:
+            fill_days += 1
+            if fill_days > ANCHOR_FFILL_TRADING_DAYS:
+                return pd.Series(dtype=float)  # exceeds ffill safety cap
+        cursor += pd.Timedelta(days=1)
+
+    # Carry the last actual close forward onto the anchor date.
+    filled = aligned.reindex(aligned.index.union([anchor])).sort_index().ffill()
+    return filled.loc[filled.index <= anchor]
+
 
 def has_sufficient_history(prices: pd.Series, days: int) -> bool:
     """
@@ -173,35 +280,58 @@ def calculate_sharpe_ratio(prices: pd.Series, days: int, risk_free_rate: float =
     return sharpe
 
 
-def find_exact_month_start(prices: pd.Series, months: int) -> Optional[pd.Timestamp]:
-    """Find the exact calendar-month start, falling back up to five days."""
+def find_exact_month_start(
+    prices: pd.Series,
+    months: int,
+    holidays: Optional[set] = None
+) -> Optional[pd.Timestamp]:
+    """
+    Find the exact calendar-month window start for a series already aligned
+    to the shared anchor (its last row is the anchor trading date).
+
+    The anchor is resolved purely from the calendar (end date minus N months,
+    stepping back over weekends/holidays - see resolve_month_anchor), then we
+    locate that date in the ETF's own trade history. If the ETF did not trade
+    exactly on the anchor date, walk back day by day (never forward) until one
+    of its actual trades is found; that price is used as the window start.
+    """
     if prices.empty or months <= 0:
         return None
 
     end_date = pd.Timestamp(prices.index[-1]).normalize()
-    target_date = end_date - pd.DateOffset(months=months)
+    anchor = resolve_month_anchor(end_date, months, holidays)
+
     available_dates = {pd.Timestamp(value).normalize(): value for value in prices.index}
 
-    for offset in range(EXACT_MONTH_LOOKBACK_DAYS + 1):
-        candidate = (target_date - pd.Timedelta(days=offset)).normalize()
+    candidate = anchor
+    while candidate >= pd.Timestamp(prices.index[0]).normalize():
         if candidate in available_dates:
             return available_dates[candidate]
+        candidate -= pd.Timedelta(days=1)
 
     return None
 
 
-def get_exact_month_prices(prices: pd.Series, months: int) -> pd.Series:
+def get_exact_month_prices(
+    prices: pd.Series,
+    months: int,
+    holidays: Optional[set] = None
+) -> pd.Series:
     """Return prices from the resolved exact-month boundary through the end."""
-    start_date = find_exact_month_start(prices, months)
+    start_date = find_exact_month_start(prices, months, holidays)
     if start_date is None:
         return pd.Series(dtype=float)
 
     return prices.loc[start_date:]
 
 
-def calculate_returns_from_exact_months(prices: pd.Series, months: int) -> float:
+def calculate_returns_from_exact_months(
+    prices: pd.Series,
+    months: int,
+    holidays: Optional[set] = None
+) -> float:
     """Calculate return between the resolved exact-month boundary and the end."""
-    period_prices = get_exact_month_prices(prices, months)
+    period_prices = get_exact_month_prices(prices, months, holidays)
     if len(period_prices) < 2:
         return np.nan
 
@@ -216,10 +346,11 @@ def calculate_returns_from_exact_months(prices: pd.Series, months: int) -> float
 def calculate_volatility_from_exact_months(
     prices: pd.Series,
     months: int,
-    annualize: bool = True
+    annualize: bool = True,
+    holidays: Optional[set] = None
 ) -> float:
     """Calculate volatility over the resolved exact-month window."""
-    period_prices = get_exact_month_prices(prices, months)
+    period_prices = get_exact_month_prices(prices, months, holidays)
     if len(period_prices) < 2:
         return np.nan
 
@@ -237,10 +368,11 @@ def calculate_volatility_from_exact_months(
 def calculate_sharpe_ratio_from_exact_months(
     prices: pd.Series,
     months: int,
-    risk_free_rate: float = DEFAULT_RISK_FREE_RATE
+    risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
+    holidays: Optional[set] = None
 ) -> float:
     """Calculate annualized Sharpe ratio over the exact-month window."""
-    period_prices = get_exact_month_prices(prices, months)
+    period_prices = get_exact_month_prices(prices, months, holidays)
     if len(period_prices) < 2:
         return np.nan
 
@@ -425,7 +557,9 @@ def calculate_all_metrics_for_etf(
     nav_df: pd.DataFrame,
     risk_free_rate: float = DEFAULT_RISK_FREE_RATE,
     calculation_method: str = CALCULATION_METHOD_252_DAYS,
-    volume_lookback_days: int = VOLUME_LOOKBACK_DEFAULT_DAYS
+    volume_lookback_days: int = VOLUME_LOOKBACK_DEFAULT_DAYS,
+    anchor_date: Optional[pd.Timestamp] = None,
+    holidays: Optional[set] = None
 ) -> Dict:
     """
     Calculate all metrics for a single ETF.
@@ -442,6 +576,13 @@ def calculate_all_metrics_for_etf(
         risk_free_rate: Annual risk-free rate
         calculation_method: Either the existing 252-trading-day method or
             exact calendar-month periods
+        volume_lookback_days: Window (in rows) for volume/turnover stats
+        anchor_date: Shared last-trading date every ETF's price series is
+            aligned to before any metric is computed (see
+            align_prices_to_anchor). When None, each ETF is measured from
+            its own last row (legacy behaviour).
+        holidays: Set of date objects (NSE holidays) used for trading-day
+            gap checks during anchor alignment and month-anchor resolution
 
     Returns:
         Dictionary containing all calculated metrics
@@ -453,6 +594,20 @@ def calculate_all_metrics_for_etf(
 
     if prices.empty or len(prices) < 2:
         return {}
+
+    # Align this ETF's price series to the shared anchor date so that all
+    # ETFs' windows end on the same day. If the ETF cannot be aligned
+    # within the backfill caps (stale/delisted feed), report it via
+    # close_date = NaT with no metrics rather than silently using a
+    # different as-of date.
+    if anchor_date is not None:
+        prices = align_prices_to_anchor(prices, anchor_date, holidays)
+        if prices.empty or len(prices) < 2:
+            return {
+                'nse_code': nse_code,
+                'last_close': np.nan,
+                'close_date': pd.NaT,
+            }
 
     # Get latest values
     last_close = prices.iloc[-1] if len(prices) > 0 else np.nan
@@ -471,7 +626,7 @@ def calculate_all_metrics_for_etf(
     if calculation_method == CALCULATION_METHOD_EXACT_MONTHS:
         for period_name in RETURN_PERIODS_DAYS:
             returns[f'{period_name}m_return'] = calculate_returns_from_exact_months(
-                prices, period_name
+                prices, period_name, holidays
             )
             returns[f'{period_name}m_annualized'] = calculate_annualized_return_from_months(
                 prices, period_name
@@ -486,7 +641,7 @@ def calculate_all_metrics_for_etf(
     if calculation_method == CALCULATION_METHOD_EXACT_MONTHS:
         for period_name in RETURN_PERIODS_DAYS:
             sharpe[f'{period_name}m_sharpe'] = calculate_sharpe_ratio_from_exact_months(
-                prices, period_name, risk_free_rate
+                prices, period_name, risk_free_rate, holidays
             )
     else:
         for period_name, days in RETURN_PERIODS_DAYS.items():
@@ -496,7 +651,7 @@ def calculate_all_metrics_for_etf(
 
     # Calculate volatility (1 year)
     volatility = (
-        calculate_volatility_from_exact_months(prices, 12)
+        calculate_volatility_from_exact_months(prices, 12, holidays=holidays)
         if calculation_method == CALCULATION_METHOD_EXACT_MONTHS
         else calculate_volatility(prices, 252)
     )
@@ -523,7 +678,7 @@ def calculate_all_metrics_for_etf(
     # If less history is available, fall back to the max over whatever
     # data exists.
     if calculation_method == CALCULATION_METHOD_EXACT_MONTHS:
-        high_52w_prices = get_exact_month_prices(prices, 12)
+        high_52w_prices = get_exact_month_prices(prices, 12, holidays)
     else:
         high_52w_prices = prices.iloc[-252:]
     high_52w = (
