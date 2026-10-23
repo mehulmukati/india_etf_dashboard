@@ -4,9 +4,16 @@ Keeps app.py lean by encapsulating the main workflow logic.
 """
 import pandas as pd
 from typing import Dict, List
-from database.fetch_data import fetch_etf_master, fetch_etf_nav, fetch_etf_ohlc
+from database.fetch_data import (
+    fetch_etf_master,
+    fetch_etf_nav,
+    fetch_etf_ohlc,
+    get_last_trading_date,
+    get_nse_holidays,
+)
 from calculations.metrics import calculate_all_metrics_for_etf
 from calculations.filters import apply_all_filters, sort_by_selected_metric, calculate_average_metrics
+from config import NSE_HOLIDAYS_SEGMENT
 
 
 def load_all_data():
@@ -32,7 +39,14 @@ def calculate_all_etf_metrics(
 ) -> pd.DataFrame:
     """
     Calculate metrics for all ETFs in the master list.
-    
+
+    All ETFs are aligned to a single shared anchor date (the last trading
+    date derived from the calendar + NSE holiday list) before any metric is
+    computed, so every momentum window across every ETF ends on the same day.
+    An ETF whose feed is too stale to align within the backfill caps is
+    excluded with a visible warning rather than being measured as-of a
+    different date.
+
     Args:
         master_df: ETF master data
         nav_df: NAV data
@@ -43,8 +57,12 @@ def calculate_all_etf_metrics(
     Returns:
         DataFrame with all calculated metrics
     """
+    anchor_date = pd.Timestamp(get_last_trading_date(NSE_HOLIDAYS_SEGMENT))
+    holidays = get_nse_holidays(NSE_HOLIDAYS_SEGMENT)
+
     metrics_list = []
-    
+    stale_etfs = []
+
     for _, row in master_df.iterrows():
         nse_code = row['nse_code']
         scheme_code = row['scheme_code']
@@ -55,15 +73,31 @@ def calculate_all_etf_metrics(
             nav_df=nav_df,
             risk_free_rate=risk_free_rate,
             calculation_method=calculation_method,
-            volume_lookback_days=volume_lookback_days
+            volume_lookback_days=volume_lookback_days,
+            anchor_date=anchor_date,
+            holidays=holidays
         )
-        
+
         if metrics:
+            # ETF could not be aligned to the shared anchor (stale/delisted
+            # price feed): keep it out of the rankings, but report it
+            # instead of silently dropping it.
+            if pd.isna(metrics.get('close_date', pd.NaT)):
+                stale_etfs.append(nse_code)
+                continue
             metrics['scheme_name'] = row.get('scheme_name', '')
             metrics['index_tracked'] = row.get('index_tracked', '')
             metrics['category'] = row.get('category', '')
             metrics_list.append(metrics)
-    
+
+    if stale_etfs:
+        import streamlit as st
+        st.warning(
+            f"{len(stale_etfs)} ETF(s) had no price data near the anchor date "
+            f"({anchor_date.date()}) and were excluded: {', '.join(sorted(stale_etfs))}"
+        )
+
+
     if not metrics_list:
         return pd.DataFrame()
     
