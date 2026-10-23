@@ -8,8 +8,6 @@ from config import (
     VOLUME_LOOKBACK_DEFAULT_DAYS,
     VOLUME_LOOKBACK_MAX_DAYS,
     VOLUME_LOOKBACK_MIN_DAYS,
-    TOP_HIGHLIGHT_ROWS_DEFAULT,
-    NEXT_HIGHLIGHT_ROWS_DEFAULT,
 )
 from calculations.filters import get_available_metric_options
 from calculations.metrics import (
@@ -211,43 +209,6 @@ def build_min_traded_value_filter() -> float:
     return min_turnover
 
 
-def build_highlight_rows_controls() -> Tuple[int, int]:
-    """
-    Row-highlighting counts are currently fixed via config defaults
-    (TOP_HIGHLIGHT_ROWS_DEFAULT / NEXT_HIGHLIGHT_ROWS_DEFAULT). The sidebar
-    widgets are intentionally disabled so users cannot change them: any
-    sidebar widget change forces a full Streamlit rerun, which previously
-    re-triggered data loading/metric calculation unnecessarily. To let users
-    tune these values again, uncomment the block below.
-
-    Returns:
-        Tuple of (top_rows, next_rows)
-    """
-    # --- Row Highlighting UI (disabled on purpose - see docstring) ---
-    # st.subheader("Row Highlighting")
-    #
-    # top_rows = st.number_input(
-    #     "Highlight Top N Rows",
-    #     min_value=0,
-    #     max_value=50,
-    #     value=TOP_HIGHLIGHT_ROWS_DEFAULT,
-    #     step=1,
-    #     help="Number of top-ranked rows (by selected metric) shown in the first color. Set 0 to disable highlighting."
-    # )
-    #
-    # next_rows = st.number_input(
-    #     "Highlight Next M Rows",
-    #     min_value=0,
-    #     max_value=50,
-    #     value=NEXT_HIGHLIGHT_ROWS_DEFAULT,
-    #     step=1,
-    #     help="Number of rows immediately after the top N shown in the second color."
-    # )
-    #
-    # return int(top_rows), int(next_rows)
-    return TOP_HIGHLIGHT_ROWS_DEFAULT, NEXT_HIGHLIGHT_ROWS_DEFAULT
-
-
 def build_sidebar() -> Dict:
     """
     Build the complete sidebar with all filters.
@@ -298,11 +259,6 @@ def build_sidebar() -> Dict:
         
         st.divider()
         
-        # Row highlighting (top N + next M ranked rows)
-        highlight_top_rows, highlight_next_rows = build_highlight_rows_controls()
-
-        st.divider()
-        
         # Table display options
         show_all_columns = st.checkbox(
             "Show All Columns",
@@ -321,7 +277,5 @@ def build_sidebar() -> Dict:
             'min_annual_return': min_annual_return,
             'volume_lookback_days': volume_lookback_days,
             'min_traded_value': min_traded_value,
-            'highlight_top_rows': highlight_top_rows,
-            'highlight_next_rows': highlight_next_rows,
             'show_all_columns': show_all_columns
         }
