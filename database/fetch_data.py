@@ -26,13 +26,14 @@ from config import (
 from database.client import get_supabase_client
 
 
-def get_nse_holidays(segment: str = "CBM") -> set:
+def get_nse_holidays(segment: str = "CM") -> set:
     """
     Load NSE holidays for a given segment from the JSON file.
     Dates are returned as a set of date objects for fast lookup.
 
     Args:
-        segment: Market segment key in the JSON (default 'CBM' for equity/ETF)
+        segment: Market segment key in the JSON (default 'CM' for the cash
+                 market segment, where equity/ETFs trade)
 
     Returns:
         Set of date objects representing market holidays
@@ -56,7 +57,7 @@ def get_nse_holidays(segment: str = "CBM") -> set:
     return holidays
 
 
-def get_last_trading_date(segment: str = "CBM") -> date:
+def get_last_trading_date(segment: str = "CM") -> date:
     """
     Determine the most recent trading date by stepping back from today,
     skipping weekends and NSE holidays.

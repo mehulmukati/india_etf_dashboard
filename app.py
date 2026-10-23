@@ -43,7 +43,9 @@ def main():
         sorted_df,
         filters['selected_metric'],
         volume_lookback_days=filters['volume_lookback_days'],
-        show_all_columns=filters.get('show_all_columns', False)
+        show_all_columns=filters.get('show_all_columns', False),
+        highlight_top_rows=filters.get('highlight_top_rows', 0),
+        highlight_next_rows=filters.get('highlight_next_rows', 0)
     )
     st.divider()
     export_to_csv(sorted_df)

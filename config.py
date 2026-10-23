@@ -4,7 +4,7 @@ Global constants, cache TTLs, and default configuration values.
 
 # NSE Holidays
 NSE_HOLIDAYS_PATH = "nse_holidays.json"   # adjust path if file is in a subdirectory
-NSE_HOLIDAYS_SEGMENT = "CBM"              # CBM = equity/ETF segment
+NSE_HOLIDAYS_SEGMENT = "CM"               # CM = cash market segment (equity/ETF trading)
 
 # Cache TTLs (in seconds)
 NAV_CACHE_TTL = 43200  # 12 hours
@@ -51,6 +51,17 @@ AVERAGE_RETURN_PERIODS = [
 TABLE_ETF_MASTER = "etf_master"
 TABLE_ETF_NAV = "etf_nav"
 TABLE_ETF_OHLC = "etf_ohlc"
+
+# Row highlighting in the results table (based on rank order by selected metric)
+TOP_HIGHLIGHT_ROWS_DEFAULT = 4      # rows ranked 1..N get the first color
+NEXT_HIGHLIGHT_ROWS_DEFAULT = 2     # next M ranked rows get the second color
+
+# Light-mode / dark-mode background tints for the two highlight groups.
+# Streamlit exposes its active theme via st.get_option("theme.base").
+HIGHLIGHT_COLORS = {
+    "light": ["#dbeafe", "#fef3c7"],   # soft blue, soft amber
+    "dark": ["#1e3a5f", "#4a3b1a"],    # deep muted blue, deep muted amber
+}
 
 # Column name mappings
 MASTER_COLUMNS = ["scheme_code", "nse_code", "scheme_name", "index_tracked", "category"]

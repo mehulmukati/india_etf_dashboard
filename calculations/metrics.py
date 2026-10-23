@@ -518,8 +518,19 @@ def calculate_all_metrics_for_etf(
     median_volume = calculate_median_volume(volumes, volume_lookback_days)
     avg_turnover = calculate_avg_turnover(turnovers, volume_lookback_days)
 
-    # Calculate 52-week high
-    high_52w = prices.max() if len(prices) >= 252 else prices.max()
+    # Calculate 52-week high: max close over the last 252 trading days
+    # (days method) or the last 12 exact calendar months (months method).
+    # If less history is available, fall back to the max over whatever
+    # data exists.
+    if calculation_method == CALCULATION_METHOD_EXACT_MONTHS:
+        high_52w_prices = get_exact_month_prices(prices, 12)
+    else:
+        high_52w_prices = prices.iloc[-252:]
+    high_52w = (
+        high_52w_prices.max()
+        if not high_52w_prices.empty
+        else prices.max()
+    )
 
     return {
         'nse_code': nse_code,
