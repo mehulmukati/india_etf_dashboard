@@ -57,19 +57,25 @@ def get_nse_holidays(segment: str = "CM") -> set:
     return holidays
 
 
-def get_last_trading_date(segment: str = "CM") -> date:
+def get_last_trading_date(
+      segment: str = "CM",
+      start_date: date | None = None,
+  ) -> date:
     """
-    Determine the most recent trading date by stepping back from today,
-    skipping weekends and NSE holidays.
+    Determine the most recent trading date by stepping back from a start
+    date (default: today), skipping weekends and NSE holidays.
 
     Args:
         segment: Market segment to use for holiday lookup
+        start_date: Date to start stepping back from. Callers pass the
+            latest trade_date present in the cached OHLC data so the
+            anchor never points at a day whose EOD job hasn't landed yet.
 
     Returns:
         Most recent trading date as a date object
     """
     holidays = get_nse_holidays(segment)
-    candidate = date.today()
+    candidate = start_date if start_date is not None else date.today()
 
     while True:
         # Skip weekends (Mon=0 ... Sun=6)

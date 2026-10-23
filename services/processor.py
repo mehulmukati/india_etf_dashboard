@@ -57,7 +57,23 @@ def calculate_all_etf_metrics(
     Returns:
         DataFrame with all calculated metrics
     """
-    anchor_date = pd.Timestamp(get_last_trading_date(NSE_HOLIDAYS_SEGMENT))
+    # Anchor is derived from the data we actually have, not from the
+    # calendar. The Supabase EOD job may not have landed today's close
+    # yet, so using date.today() would put every window one day ahead of
+    # the DB (and shift all lookback anchors by a day). Take the latest
+    # trade_date present in the cached OHLC frame and step back from it
+    # over weekends/holidays; this costs no extra Supabase call since the
+    # OHLC frame is already cached.
+    if ohlc_df.empty or "trade_date" not in ohlc_df.columns:
+        data_max_date = None
+    else:
+        max_ts = pd.to_datetime(ohlc_df["trade_date"]).max()
+        data_max_date = max_ts.date() if pd.notna(max_ts) else None
+
+    anchor_date = pd.Timestamp(
+        get_last_trading_date(NSE_HOLIDAYS_SEGMENT, start_date=data_max_date)
+    )
+
     holidays = get_nse_holidays(NSE_HOLIDAYS_SEGMENT)
 
     metrics_list = []
