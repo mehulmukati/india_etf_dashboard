@@ -213,33 +213,39 @@ def build_min_traded_value_filter() -> float:
 
 def build_highlight_rows_controls() -> Tuple[int, int]:
     """
-    Build controls for how many top-ranked rows get highlighted and in how
-    many groups (first group = top N rows, second group = next M rows).
+    Row-highlighting counts are currently fixed via config defaults
+    (TOP_HIGHLIGHT_ROWS_DEFAULT / NEXT_HIGHLIGHT_ROWS_DEFAULT). The sidebar
+    widgets are intentionally disabled so users cannot change them: any
+    sidebar widget change forces a full Streamlit rerun, which previously
+    re-triggered data loading/metric calculation unnecessarily. To let users
+    tune these values again, uncomment the block below.
 
     Returns:
         Tuple of (top_rows, next_rows)
     """
-    st.subheader("Row Highlighting")
-
-    top_rows = st.number_input(
-        "Highlight Top N Rows",
-        min_value=0,
-        max_value=50,
-        value=TOP_HIGHLIGHT_ROWS_DEFAULT,
-        step=1,
-        help="Number of top-ranked rows (by selected metric) shown in the first color. Set 0 to disable highlighting."
-    )
-
-    next_rows = st.number_input(
-        "Highlight Next M Rows",
-        min_value=0,
-        max_value=50,
-        value=NEXT_HIGHLIGHT_ROWS_DEFAULT,
-        step=1,
-        help="Number of rows immediately after the top N shown in the second color."
-    )
-
-    return int(top_rows), int(next_rows)
+    # --- Row Highlighting UI (disabled on purpose - see docstring) ---
+    # st.subheader("Row Highlighting")
+    #
+    # top_rows = st.number_input(
+    #     "Highlight Top N Rows",
+    #     min_value=0,
+    #     max_value=50,
+    #     value=TOP_HIGHLIGHT_ROWS_DEFAULT,
+    #     step=1,
+    #     help="Number of top-ranked rows (by selected metric) shown in the first color. Set 0 to disable highlighting."
+    # )
+    #
+    # next_rows = st.number_input(
+    #     "Highlight Next M Rows",
+    #     min_value=0,
+    #     max_value=50,
+    #     value=NEXT_HIGHLIGHT_ROWS_DEFAULT,
+    #     step=1,
+    #     help="Number of rows immediately after the top N shown in the second color."
+    # )
+    #
+    # return int(top_rows), int(next_rows)
+    return TOP_HIGHLIGHT_ROWS_DEFAULT, NEXT_HIGHLIGHT_ROWS_DEFAULT
 
 
 def build_sidebar() -> Dict:
