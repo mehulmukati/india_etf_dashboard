@@ -46,13 +46,20 @@ def get_nse_holidays(segment: str = "CM") -> set:
         data = json.load(f)
 
     holidays = set()
-    for entry in data.get(segment, []):
-        try:
-            holidays.add(
-                pd.to_datetime(entry["tradingDate"], format="%d-%b-%Y").date()
-            )
-        except (KeyError, ValueError):
-            continue
+    # JSON layout: {segment: {year: [entries]}} — iterate all year buckets.
+    segment_data = data.get(segment, {})
+    if isinstance(segment_data, dict):
+        year_groups = segment_data.values()
+    else:  # fallback: legacy flat list layout
+        year_groups = [segment_data]
+    for entries in year_groups:
+        for entry in entries:
+            try:
+                holidays.add(
+                    pd.to_datetime(entry["tradingDate"], format="%d-%b-%Y").date()
+                )
+            except (KeyError, ValueError):
+                continue
 
     return holidays
 
