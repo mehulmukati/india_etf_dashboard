@@ -110,10 +110,14 @@ def fetch_etf_master() -> pd.DataFrame:
     """
     client = get_supabase_client()
 
+    # Single page fetch (no pagination here), but add an explicit deterministic
+    # ORDER BY id (the only PK in etf_master) so Postgres never returns rows
+    # in a plan-dependent order across calls.
     response = (
         client.table(TABLE_ETF_MASTER)
-        .select(",".join(MASTER_COLUMNS))
+        .select(",".join(MASTER_COLUMNS + ["id"]))
         .eq("is_active", True)
+        .order("id")
         .execute()
     )
 
@@ -130,6 +134,7 @@ def fetch_etf_master() -> pd.DataFrame:
             f"Check MASTER_COLUMNS in config.py matches the actual table schema."
         )
 
+    # Drop the helper 'id' column before returning to callers
     return df[[col for col in MASTER_COLUMNS if col in df.columns]]
 
 
@@ -220,6 +225,14 @@ def fetch_etf_ohlc() -> pd.DataFrame:
             .select(",".join(OHLC_COLUMNS))
             .gte("trade_date", cutoff_date.isoformat())
             .lte("trade_date", last_trading_date.isoformat())
+            # Deterministic ORDER BY is required for stable pagination:
+            # without it Postgres may return rows in a plan-dependent order,
+            # so LIMIT/OFFSET pages can drop or duplicate rows. etf_ohlc has
+            # no PK, so we sort by the full row identity (nse_code, trade_date)
+            # plus close as a tiebreaker for any residual duplicates.
+            .order("nse_code")
+            .order("trade_date")
+            .order("close")
             .range(page * page_size, (page + 1) * page_size - 1)
             .execute()
         )
@@ -229,6 +242,9 @@ def fetch_etf_ohlc() -> pd.DataFrame:
 
         all_data.extend(response.data)
         page += 1
+
+        if len(response.data) < page_size:
+            break  # last page reached
 
     if not all_data:
         return pd.DataFrame(columns=OHLC_COLUMNS)
